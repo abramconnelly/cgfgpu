@@ -4,6 +4,8 @@
 #include <stdio.h>
 #include <cuda.h>
 
+#include "cgft.hpp"
+
 CUdevice		cuDevice;
 CUcontext		cuContext;
 CUmodule		cuCustom;
@@ -61,6 +63,27 @@ int main (int argc, char* argv)
 	for (int n=0; n < 100; n++ ) {
 		printf ( "%d: %d\n", n, dat[n] );
 	}
+
+	cgf_t* cgf1;
+	cgf_t* cgf2;
+	
+	FILE* fp1 = fopen ( "hg19.cgfv3", "rb" );
+	if ( fp1 == 0x0 ) printf ( "Cannot find cgf.\n" );
+	cgf1 = cgft_read ( fp1 );
+	if ( cgf1 == 0x0 ) printf ( "Cannot read cgf.\n" );
+
+	FILE* fp2 = fopen ( "hu34D5B9-GS01670-DNA_E02.cgfv3", "rb" );
+	if ( fp2 == 0x0 ) printf ( "Cannot find cgf.\n" );
+	cgf2 = cgft_read ( fp2 );
+	if ( cgf2 == 0x0 ) printf ( "Cannot read cgf.\n" );
+
+	
+	FILE* fout = fopen ( "out.txt", "wt" );
+	tilepath_t tp = cgf1->Path[0];
+	cgft_output_band_format( cgf1, &tp, fout );
+	tp = cgf2->Path[0];
+	cgft_output_band_format( cgf2, &tp, fout );
+	fclose (fout);
 
  	return 1;
 }
