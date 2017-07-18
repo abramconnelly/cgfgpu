@@ -406,6 +406,9 @@ cgf_t *cgf_read(FILE *fp) {
       sz = fread(&u64, sizeof(uint64_t), 1, fp);
       if (sz!=1) { goto gcgf_read_error; }
       cgf->TileStepCount.push_back(u64);
+
+      //DEBUG
+      //printf("  step[%i] %llu\n", i, (unsigned long long)u64);
     }
 
     // Stride Offset
@@ -416,6 +419,9 @@ cgf_t *cgf_read(FILE *fp) {
       sz = fread(&u64, sizeof(uint64_t), 1, fp);
       if (sz!=1) { goto gcgf_read_error; }
       cgf->StrideOffset.push_back(u64);
+
+      //DEBUG
+      //printf("  ofst[%i] %llu\n", i, (unsigned long long)u64);
     }
 
     //DEBUG
@@ -430,6 +436,12 @@ cgf_t *cgf_read(FILE *fp) {
     sz = fread(&(cgf->Loq[0]), sizeof(unsigned char), u64, fp);
     if (sz!=u64) { goto gcgf_read_error; }
 
+    printf("  loq(%i):\n", (int)cgf->Loq.size());
+    for (i=0; i<cgf->Loq.size(); i++) { printf(" %02x", cgf->Loq[i]); }
+    printf("\n");
+
+
+
     //DEBUIG
     //printf("loq[%i]:", (int)cgf->Loq.size());
     //for (i=0; i<cgf->Loq.size(); i++) { printf(" %02x", cgf->Loq[i]); }
@@ -440,6 +452,12 @@ cgf_t *cgf_read(FILE *fp) {
     sz = fread(&(cgf->Span[0]), sizeof(unsigned char), u64, fp);
     if (sz!=u64) { goto gcgf_read_error; }
 
+    printf("  span(%i):\n", (int)cgf->Span.size());
+    for (i=0; i<cgf->Span.size(); i++) { printf(" %02x", cgf->Span[i]); }
+    printf("\n");
+
+
+
     //DEBUIG
     //printf("span[%i]:", (int)cgf->Span.size());
     //for (i=0; i<cgf->Span.size(); i++) { printf(" %02x", cgf->Span[i]); }
@@ -449,6 +467,12 @@ cgf_t *cgf_read(FILE *fp) {
     cgf->Canon.resize(u64);
     sz = fread(&(cgf->Canon[0]), sizeof(unsigned char), u64, fp);
     if (sz!=u64) { goto gcgf_read_error; }
+
+    printf("  strideoffset(%i):\n", (int)cgf->Canon.size());
+    for (i=0; i<cgf->Canon.size(); i++) { printf(" %02x", cgf->Canon[i]); }
+    printf("\n");
+
+
 
     //DEBUIG
     //printf("Canon[%i]:", (int)cgf->Canon.size());
@@ -462,9 +486,15 @@ cgf_t *cgf_read(FILE *fp) {
 
 
     //DEBUIG
-    //printf("cp3\n");
-    //printf("ovf[%i]:", (int)cgf->CacheOverflow.size());
-    //for (i=0; i<cgf->CacheOverflow.size(); i++) { printf(" %02x", cgf->CacheOverflow[i]); }
+    printf("cp3\n");
+    printf("ovf[%i]:\n", (int)cgf->CacheOverflow.size());
+    for (i=0; i<cgf->CacheOverflow.size(); i++) { printf(" %02x", cgf->CacheOverflow[i]); }
+    printf("\n");
+
+    //printf("  cacheovf(%i):", (int)cgf->CacheOverflow.size());
+    //for (i=0; i<(int)cgf->CacheOverflow.size(); i++) {
+    //  printf(" %llu(%016llx)", (unsigned long long)cgf->CacheOverflow[i], (unsigned long long)cgf->CacheOverflow[i]);
+    //}
     //printf("\n");
 
 
@@ -476,11 +506,20 @@ cgf_t *cgf_read(FILE *fp) {
     if (sz!=cgf->TilePathCount) { goto gcgf_read_error; }
 
     //DEBUG
-    //printf("cp4\n");
-    //printf("  tilepathcount %i\n", (int)cgf->TilePathCount);
+    printf("cp4\n");
+    printf("  tilepathcount %i\n", (int)cgf->TilePathCount);
+    printf("  sz %i\n", (int)cgf->OverflowOffset.size());
+    printf("  ovfoffst(%i):\n", (int)cgf->OverflowOffset.size());
+    for (i=0; i<(int)cgf->OverflowOffset.size(); i++) {
+      printf(" %llu(%016llx)", (unsigned long long)cgf->OverflowOffset[i], (unsigned long long)cgf->OverflowOffset[i]);
+    }
+    printf("\n");
 
     u64 = cgf->OverflowOffset[ cgf->OverflowOffset.size()-1 ];
     //cgf->Overflow.resize( u64 * 3 );
+
+    //DEBUG
+    printf("  u64 %llu\n", (unsigned long long)u64);
 
     if (u64>0) {
 
@@ -646,7 +685,7 @@ uint64_t cgf_write_to_file(cgf_t *cgf, const char *ofn) {
 
     sz = fwrite(&(cgf->TileStepCount[0]), sizeof(uint64_t), cgf->TileStepCount.size(), ofp);
     if (sz!=cgf->TileStepCount.size()) { return -1; }
-    byte_count += (uint64_t)(cgf->TileStepCount.size());
+    byte_count += (uint64_t)(sizeof(uint64_t)*(cgf->TileStepCount.size()));
 
     //DEBUG
     //printf("tilestepcount(%i):", (int)cgf->TileStepCount.size());
@@ -655,7 +694,7 @@ uint64_t cgf_write_to_file(cgf_t *cgf, const char *ofn) {
 
     sz = fwrite(&(cgf->StrideOffset[0]), sizeof(uint64_t), cgf->StrideOffset.size(), ofp);
     if (sz!=cgf->StrideOffset.size()) { return -1; }
-    byte_count += (uint64_t)(cgf->StrideOffset.size());
+    byte_count += (uint64_t)(sizeof(uint64_t)*(cgf->StrideOffset.size()));
 
     //DEBUG
     //printf("stride(%i):", (int)cgf->StrideOffset.size());

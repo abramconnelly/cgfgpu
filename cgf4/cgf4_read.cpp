@@ -64,9 +64,11 @@ void ez_add_tilepath(cgf_t *cgf, int tilepath_idx, tilepath_ez_t &ez) {
     cgf->Span.push_back(ez.span_bv[i64]);
   }
 
-  for (i64=0; i64<(4-(sz%4)); i64++) {
-    cgf->Loq.push_back(ez.loq_bv[i64]);
-    cgf->Span.push_back(ez.span_bv[i64]);
+  if ((sz%4)!=0) {
+    for (i64=0; i64<(4-(sz%4)); i64++) {
+      cgf->Loq.push_back(ez.loq_bv[i64]);
+      cgf->Span.push_back(ez.span_bv[i64]);
+    }
   }
 
   sz = (ez.N + 31)/32;

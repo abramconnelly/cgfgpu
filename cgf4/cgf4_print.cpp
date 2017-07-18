@@ -259,11 +259,7 @@ void mk_vec_tilemap(std::vector< std::vector< std::vector<int> > > &vtm, const c
 
 
 
-// TODO:
-//
-// - cache overflow
-//
-// THIS FUNCTION IS NOT FINISHED UNTIL CACHE OVEFLOW IS POPULATED
+//-----
 //
 void cgf_output_band_format(cgf_t *cgf, int tilepath_idx, FILE *fp, int hiq) {
   int i, j, k;
