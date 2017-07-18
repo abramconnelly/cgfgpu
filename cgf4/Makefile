@@ -11,10 +11,10 @@ obj=$(src:.cpp=.o)
 	$(CC) -c -o $@ $^ $(CC_FLAGS) $(CC_LIB) $(CC_INC)
 
 gcgf: $(obj)
-	$(CC) $(CC_FLAGS) $^ -o gcgf $(CC_LIB) $(CC_INC)
+	$(CC) $(CC_FLAGS) $^ -o cgf4 $(CC_LIB) $(CC_INC)
 
 .PHONY: clean
 clean:
 	rm -f *.o
-	rm -f gcgf
+	rm -f cgf4
 

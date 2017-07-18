@@ -1,4 +1,4 @@
-#include "gcgf.hpp"
+#include "cgf4.hpp"
 
 
 // Read in tilemap from tilemap text file

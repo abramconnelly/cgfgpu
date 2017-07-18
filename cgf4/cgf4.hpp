@@ -244,10 +244,10 @@ void cgf_create_container(FILE *fp, const char *cgf_version, const char *cglf_ve
 cgf_t *cgf_read(FILE *fp);
 int cgf_read_band_tilepath(cgf_t *cgf, int idx, FILE *fp);
 
-uint64_t gcgf_write_to_file(cgf_t *cgf, const char *ofn);
+uint64_t cgf_write_to_file(cgf_t *cgf, const char *ofn);
 
 
-void gcgf_print(cgf_t *cgf);
+void cgf_print(cgf_t *cgf);
 
 void cgf_output_band_format(cgf_t *cgf, int tilepath_idx, FILE *fp, int hiq);
 

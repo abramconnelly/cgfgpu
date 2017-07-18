@@ -1,6 +1,6 @@
-#include "gcgf.hpp"
+#include "cgf4.hpp"
 
-void gcgf_print(cgf_t *cgf) {
+void cgf_print(cgf_t *cgf) {
   int i, j, n, prev_sum=0;
   size_t sz;
   int stride, tilepath;

@@ -1,4 +1,4 @@
-#include "gcgf.hpp"
+#include "cgf4.hpp"
 
 int cgf_sanity(cgf_t *cgf) {
   int i, j, k;

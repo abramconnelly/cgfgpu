@@ -1,4 +1,4 @@
-GCGF
+CGF4
 ===
 
 A tool to manipulate CGF(v4) files.

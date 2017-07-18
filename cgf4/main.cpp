@@ -1,12 +1,12 @@
-#include "gcgf.hpp"
+#include "cgf4.hpp"
 
-#define cleanup_err() do { ret=1; show_help(); goto gcgf_cleanup; } while (0);
-#define cleanup_fail() do { ret=-2; goto gcgf_cleanup; } while (0);
-#define cleanup_ok() do { ret=0; show_help(); goto gcgf_cleanup; } while (0);
-#define cleanup() do { show_help(); goto gcgf_cleanup; } while (0);
+#define cleanup_err() do { ret=1; show_help(); goto cgf_cleanup; } while (0);
+#define cleanup_fail() do { ret=-2; goto cgf_cleanup; } while (0);
+#define cleanup_ok() do { ret=0; show_help(); goto cgf_cleanup; } while (0);
+#define cleanup() do { show_help(); goto cgf_cleanup; } while (0);
 
 
-typedef struct gcgf_opt_type {
+typedef struct cgf_opt_type {
   int show_header,
       show_band,
       encode,
@@ -40,7 +40,7 @@ typedef struct gcgf_opt_type {
   int update_header;
   int hiq_only;
 
-} gcgf_opt_t;
+} cgf_opt_t;
 
 static struct option long_options[] = {
   {"header",              no_argument,        NULL, 'H'},
@@ -62,7 +62,7 @@ static struct option long_options[] = {
   {0,0,0,0}
 };
 
-void init_gcgf_opt(gcgf_opt_t *opt) {
+void init_cgf_opt(cgf_opt_t *opt) {
   opt->show_header=0;
   opt->show_band=0;
   opt->encode=0;
@@ -97,7 +97,7 @@ void show_help() {
   printf("CGF Tool.  A tool used to inspect and edit Compact Genome Format (CGF) v4 files.\n");
   printf("Version: %s\n", CGF_VERSION);
   printf("\n");
-  printf("usage:\n  gcgf [-H] [-b tilepath] [-e tilepath] [-i ifn] [-o ofn] [-h] [-v] [-V] [ifn]\n");
+  printf("usage:\n  cgf4 [-H] [-b tilepath] [-e tilepath] [-i ifn] [-o ofn] [-h] [-v] [-V] [ifn]\n");
   printf("\n");
   printf("  [-H|--header]               show header\n");
   printf("  [-C|--create-container]     create empty container\n");
@@ -134,9 +134,9 @@ int main(int argc, char **argv) {
   int option_index=0;
   int def_or_nocinv=0;
 
-  gcgf_opt_t cgf_opt;
+  cgf_opt_t cgf_opt;
 
-  init_gcgf_opt(&cgf_opt);
+  init_cgf_opt(&cgf_opt);
 
   while ((opt = getopt_long(argc, argv, "Hb:e:i:o:Ct:T:L:U:hvVAZRIq", long_options, &option_index))!=-1) switch (opt) {
     case 0:
@@ -177,8 +177,8 @@ int main(int argc, char **argv) {
     cgf_opt.ifn = strdup(argv[optind]);
   }
 
-  if (cgf_opt.show_help) { show_help(); goto gcgf_cleanup; }
-  if (cgf_opt.show_version) { show_version(); goto gcgf_cleanup; }
+  if (cgf_opt.show_help) { show_help(); goto cgf_cleanup; }
+  if (cgf_opt.show_version) { show_version(); goto cgf_cleanup; }
 
 
   // We must have a command.  If not, exit.
@@ -367,7 +367,7 @@ int main(int argc, char **argv) {
     if (ifp!=stdin) { fclose(ifp); }
     ifp = NULL;
 
-    gcgf_print(cgf);
+    cgf_print(cgf);
   }
 
   else if (cgf_opt.info) {
@@ -389,7 +389,7 @@ int main(int argc, char **argv) {
 
 
 
-gcgf_cleanup:
+cgf_cleanup:
   if (cgf_opt.ifn) { free(cgf_opt.ifn); }
   if (cgf_opt.ofn) { free(cgf_opt.ofn); }
   if (cgf_opt.band_ifn) { free(cgf_opt.band_ifn); }
