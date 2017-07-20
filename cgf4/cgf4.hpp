@@ -242,6 +242,7 @@ const char *read_tilemap_from_file(std::string &, const char *);
 
 void cgf_create_container(FILE *fp, const char *cgf_version, const char *cglf_version, const char *tilemap);
 cgf_t *cgf_read(FILE *fp);
+cgf_t *cgf_read_hiq(FILE *fp);
 int cgf_read_band_tilepath(cgf_t *cgf, int idx, FILE *fp);
 
 uint64_t cgf_write_to_file(cgf_t *cgf, const char *ofn);
@@ -276,6 +277,15 @@ void ez_to_tilepath(tilepath_t *tilepath, tilepath_ez_t *ez);
 //
 
 int cgf_sanity(cgf_t *cgf);
+
+// concordance
+//
+
+int cgf_hiq_concordance(int *r_match, int *r_tot,
+                        cgf_t *a, cgf_t *b,
+                        int start_tile_path, int start_tile_step,
+                        int end_tile_path, int end_tile_step);
+
 
 
 // helper functions

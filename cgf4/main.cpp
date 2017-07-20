@@ -20,12 +20,13 @@ typedef struct cgf_opt_type {
       ez_print;
   int run_test,
       info;
-  char *ifn,
-       *ofn,
-       *tilemap_fn;
-  char *band_ifn;
+
+  //char *ifn,
+  //     *ofn,
+  //     *tilemap_fn;
+  //char *band_ifn;
+
   FILE *band_ifp;
-  int tilepath;
 
   int cgf_version_opt;
   std::vector< std::string > cgf_version_opt_ele;
@@ -37,8 +38,16 @@ typedef struct cgf_opt_type {
   std::string cglf_version_str;
   int update_cglf_version;
 
+  std::string ifn, ofn, tilemap_fn, band_ifn;
+  std::vector< std::string > ifns;
+
   int update_header;
   int hiq_only;
+
+  int match;
+
+  int tilepath, endtilepath;
+  int tilestep, endtilestep;
 
 } cgf_opt_t;
 
@@ -52,8 +61,16 @@ static struct option long_options[] = {
   {"verbose",             no_argument,        NULL, 'V'},
   {"ez-print",            no_argument,        NULL, 'Z'},
   {"hiq",                 no_argument,        NULL, 'q'},
+  {"match",               no_argument,        NULL, 'm'},
   {"band",                required_argument,  NULL, 'b'},
   {"encode",              required_argument,  NULL, 'e'},
+
+  {"tilepath",            required_argument,  NULL, 'p'},
+  {"endtilepath",         required_argument,  NULL, 'P'},
+
+  {"tilestep",            required_argument,  NULL, 's'},
+  {"endtilestep",         required_argument,  NULL, 'S'},
+
   {"input",               required_argument,  NULL, 'i'},
   {"output",              required_argument,  NULL, 'o'},
   {"tilemap",             required_argument,  NULL, 't'},
@@ -76,10 +93,18 @@ void init_cgf_opt(cgf_opt_t *opt) {
   opt->ez_print;
   opt->run_test=0;
   opt->info=0;
-  opt->ifn = NULL;
-  opt->ofn = NULL;
-  opt->tilemap_fn = NULL;
-  opt->band_ifn = NULL;
+
+  opt->tilepath=0;
+  opt->endtilepath=-1;
+
+  opt->tilestep=0;
+  opt->endtilestep=-1;
+
+  //opt->ifn = NULL;
+  //opt->ofn = NULL;
+  //opt->tilemap_fn = NULL;
+  //opt->band_ifn = NULL;
+
   opt->band_ifp = NULL;
 
   opt->cgf_version_str = CGF_VERSION;
@@ -91,6 +116,7 @@ void init_cgf_opt(cgf_opt_t *opt) {
   opt->update_header=0;
   opt->hiq_only=0;
 
+  opt->match=0;
 }
 
 void show_help() {
@@ -103,7 +129,14 @@ void show_help() {
   printf("  [-C|--create-container]     create empty container\n");
   printf("  [-I|--info]                 print basic information about CGF file\n");
   printf("  [-b|--band tilepath]        output band for tilepath\n");
+  printf("  [-m|--match]                run concordance on a pair of cgf files (must provide two cgf files)\n");
   printf("  [-e|--encode tilepath]      input tilepath band and add it to file, overwriting if it already exists\n");
+
+  printf("  [-p|--tilepath tilepath]    tilepath (start)\n");
+  printf("  [-P|--endtilepath tilepath] end tilepath\n");
+  printf("  [-s|--tilestep tilestep]    tilestep (start)\n");
+  printf("  [-S|--endtilestep tilestep] end tilestep\n");
+
   printf("  [-i|--input ifn]            input file (CGF)\n");
   printf("  [-o|--output ofn]           output file (CGF)\n");
   printf("  [-A|--show-all]             show all tilepaths\n");
@@ -130,15 +163,17 @@ int main(int argc, char **argv) {
 
   std::string tilemap_str;
   FILE *ifp=NULL, *ofp=NULL;
-  cgf_t *cgf=NULL;
+  cgf_t *cgf=NULL, *cgf_b=NULL;
   int option_index=0;
   int def_or_nocinv=0;
+
+  int match=0, tot=0;
 
   cgf_opt_t cgf_opt;
 
   init_cgf_opt(&cgf_opt);
 
-  while ((opt = getopt_long(argc, argv, "Hb:e:i:o:Ct:T:L:U:hvVAZRIq", long_options, &option_index))!=-1) switch (opt) {
+  while ((opt = getopt_long(argc, argv, "Hb:e:i:o:Ct:T:L:U:hvVAZRIqmp:P:s:S:", long_options, &option_index))!=-1) switch (opt) {
     case 0:
       fprintf(stderr, "sanity error, invalid option to parse, exiting\n");
       exit(-1);
@@ -150,12 +185,22 @@ int main(int argc, char **argv) {
     case 'b': cgf_opt.show_band=1; cgf_opt.tilepath=atoi(optarg); break;
     case 'e': cgf_opt.encode=1; cgf_opt.tilepath=atoi(optarg); break;
     case 'd': cgf_opt.del=1; cgf_opt.tilepath=atoi(optarg); break;
-    case 'i': cgf_opt.ifn=strdup(optarg); break;
+    //case 'i': cgf_opt.ifn=strdup(optarg); break;
+    case 'i': cgf_opt.ifns.push_back(optarg); break;
     case 'o': cgf_opt.ofn=strdup(optarg); break;
     case 'h': cgf_opt.show_help=1; break;
     case 'A': cgf_opt.show_all=1; break;
     case 'v': cgf_opt.show_version=1; break;
     case 'q': cgf_opt.hiq_only=1; break;
+
+    case 'p': cgf_opt.tilepath=atoi(optarg); break;
+    case 'P': cgf_opt.endtilepath=atoi(optarg); break;
+
+    case 's': cgf_opt.tilestep=atoi(optarg); break;
+    case 'S': cgf_opt.endtilestep=atoi(optarg); break;
+
+    case 'm': cgf_opt.match=1; break;
+
     case 'V': cgf_opt.verbose=1; break;
     case 'Z': cgf_opt.ez_print=1; break;
     case 'R': cgf_opt.run_test=1; break;
@@ -172,10 +217,17 @@ int main(int argc, char **argv) {
   }
 
   if (argc>optind) {
-    if ((argc-optind)>1) { printf("Extra options specified\n"); cleanup_err(); }
-    if (cgf_opt.ifn) { printf("Input CGF already specified.\n"); cleanup_err(); }
-    cgf_opt.ifn = strdup(argv[optind]);
+    if ((argc-optind)>2) { printf("Extra options specified\n"); cleanup_err(); }
+    for (i=0; i<(argc-optind); i++) {
+      cgf_opt.ifns.push_back(argv[optind+i]);
+    }
+
+    //if ((argc-optind)>1) { printf("Extra options specified\n"); cleanup_err(); }
+    //if (cgf_opt.ifn) { printf("Input CGF already specified.\n"); cleanup_err(); }
+    //cgf_opt.ifn = strdup(argv[optind]);
   }
+
+  if (cgf_opt.ifns.size()>0) { cgf_opt.ifn = cgf_opt.ifns[0]; }
 
   if (cgf_opt.show_help) { show_help(); goto cgf_cleanup; }
   if (cgf_opt.show_version) { show_version(); goto cgf_cleanup; }
@@ -193,6 +245,7 @@ int main(int argc, char **argv) {
        cgf_opt.show_all +
        cgf_opt.run_test +
        cgf_opt.info +
+       cgf_opt.match +
        cgf_opt.update_header) == 0) {
     cleanup_ok();
   }
@@ -206,6 +259,7 @@ int main(int argc, char **argv) {
        cgf_opt.show_header +
        cgf_opt.show_all +
        cgf_opt.run_test +
+       cgf_opt.match +
        cgf_opt.info) > 0) {
     cgf_opt.update_header = 0;
   }
@@ -220,6 +274,7 @@ int main(int argc, char **argv) {
        cgf_opt.show_all +
        cgf_opt.run_test +
        cgf_opt.info +
+       cgf_opt.match +
        cgf_opt.update_header) != 1) {
     printf("must specify exactly one of show header (-H), show band (-b), encode (-e), delete (-d), create empty container (-C) or update header (-U)\n");
     cleanup_err();
@@ -233,22 +288,28 @@ int main(int argc, char **argv) {
 
   if (cgf_opt.create_container) {
 
-   if (!cgf_opt.ofn) {
-      if (cgf_opt.ifn) { cgf_opt.ofn=strdup(cgf_opt.ifn); }
+
+    if (cgf_opt.ofn.size()==0) {
+    //if (!cgf_opt.ofn) {
+      //if (cgf_opt.ifn) { cgf_opt.ofn=strdup(cgf_opt.ifn); }
+      if (cgf_opt.ifn.size()>0) { cgf_opt.ofn = cgf_opt.ifn; }
       else { printf("specify output CGF file\n"); cleanup_err(); }
     }
 
-    if (!cgf_opt.tilemap_fn) {
+    //if (!cgf_opt.tilemap_fn) {
+    if (cgf_opt.tilemap_fn.size()==0) {
       tilemap_str = DEFAULT_TILEMAP;
     } else {
-      if ((read_tilemap_from_file(tilemap_str, cgf_opt.tilemap_fn))==NULL) {
-        perror(cgf_opt.tilemap_fn);
+      //if ((read_tilemap_from_file(tilemap_str, cgf_opt.tilemap_fn))==NULL) {
+      if ((read_tilemap_from_file(tilemap_str, cgf_opt.tilemap_fn.c_str()))==NULL) {
+        //perror(cgf_opt.tilemap_fn);
+        perror(cgf_opt.tilemap_fn.c_str());
         cleanup_err();
       }
     }
 
     if (cgf_opt.ofn=="-") { ofp=stdout; }
-    else if ((ofp = fopen(cgf_opt.ofn, "w"))==NULL) { perror(cgf_opt.ofn); cleanup_err(); }
+    else if ((ofp = fopen(cgf_opt.ofn.c_str(), "w"))==NULL) { perror(cgf_opt.ofn.c_str()); cleanup_err(); }
 
     cgf_create_container(
         ofp,
@@ -265,14 +326,20 @@ int main(int argc, char **argv) {
 
 	else if (cgf_opt.encode) {
     if (cgf_opt.tilepath<0) { printf("must specify tilepath\n"); cleanup_err(); }
-    if (!cgf_opt.ifn && cgf_opt.ofn)        { cgf_opt.ifn=strdup(cgf_opt.ofn); }
-    else if (cgf_opt.ifn && !cgf_opt.ofn)   { cgf_opt.ofn=strdup(cgf_opt.ifn); }
-    else if ((!cgf_opt.ifn) && (!cgf_opt.ofn)) { printf("provide CGF file\n"); cleanup_err(); }
 
-    if ((ifp=fopen(cgf_opt.ifn, "r"))==NULL) { perror(cgf_opt.ifn); cleanup_err(); }
+    //if (!cgf_opt.ifn && cgf_opt.ofn)        { cgf_opt.ifn=strdup(cgf_opt.ofn); }
+    //else if (cgf_opt.ifn && !cgf_opt.ofn)   { cgf_opt.ofn=strdup(cgf_opt.ifn); }
+    //else if ((!cgf_opt.ifn) && (!cgf_opt.ofn)) { printf("provide CGF file\n"); cleanup_err(); }
+
+    if ((cgf_opt.ifn.size()==0) && (cgf_opt.ofn.size()>0))        { cgf_opt.ifn=cgf_opt.ofn; }
+    else if ((cgf_opt.ifn.size()>0) && (cgf_opt.ofn.size()==0))   { cgf_opt.ofn=cgf_opt.ifn; }
+    else if ((cgf_opt.ifn.size()==0) && (cgf_opt.ofn.size()==0))  { printf("provide CGF file\n"); cleanup_err(); }
+
+    //if ((ifp=fopen(cgf_opt.ifn, "r"))==NULL) { perror(cgf_opt.ifn); cleanup_err(); }
+    if ((ifp=fopen(cgf_opt.ifn.c_str(), "r"))==NULL) { perror(cgf_opt.ifn.c_str()); cleanup_err(); }
     cgf = cgf_read(ifp);
     if (!cgf) {
-      printf("CGF read error.  Is %s a valid CGFv3 file?\n", cgf_opt.ifn);
+      printf("CGF read error.  Is %s a valid CGFv3 file?\n", cgf_opt.ifn.c_str());
       cleanup_fail();
     }
     if (ifp!=stdin) { fclose(ifp); }
@@ -285,30 +352,17 @@ int main(int argc, char **argv) {
       cgf->LibraryVersion= cgf_opt.cglf_version_str;
     }
 
-    if (cgf_opt.band_ifn) {
-      if ((cgf_opt.band_ifp=fopen(cgf_opt.band_ifn, "r"))==NULL) { perror(cgf_opt.band_ifn); cleanup_err(); }
+    //if (cgf_opt.band_ifn) {
+    if (cgf_opt.band_ifn.size()>0) {
+      //if ((cgf_opt.band_ifp=fopen(cgf_opt.band_ifn, "r"))==NULL) { perror(cgf_opt.band_ifn); cleanup_err(); }
+      if ((cgf_opt.band_ifp=fopen(cgf_opt.band_ifn.c_str(), "r"))==NULL) { perror(cgf_opt.band_ifn.c_str()); cleanup_err(); }
     } else {
       cgf_opt.band_ifp = stdin;
     }
 
-    /*
-    for (idx=0; idx<cgf->Path.size(); idx++) {
-      if (cgf->Path[idx].TilePath == (uint64_t)cgf_opt.tilepath) { break; }
-    }
-    if (idx==cgf->Path.size()) {
-      tilepath_t p;
-      cgf->Path.push_back(p);
-      cgf_tilepath_init(cgf->Path[idx], (uint64_t)cgf_opt.tilepath);
-      cgf->PathCount++;
-    }
-    */
-
     //encode...
     //
-    //k = cgf_read_band_tilepath(cgf, &(cgf->Path[idx]), cgf_opt.band_ifp);
     k = cgf_read_band_tilepath(cgf, cgf_opt.tilepath, cgf_opt.band_ifp);
-
-    //printf("DEBUG: cgf_read_band_tilepath got: %i\n", k);
 
     /*
     // Do some rudimentary sanity checks
@@ -320,20 +374,23 @@ int main(int argc, char **argv) {
     }
     */
 
-    k = cgf_write_to_file(cgf, cgf_opt.ofn);
-
-    //printf("DEBUG: cgf_write_to_file got: %i\n", k);
+    //k = cgf_write_to_file(cgf, cgf_opt.ofn);
+    k = cgf_write_to_file(cgf, cgf_opt.ofn.c_str());
 
   }
 
   else if (cgf_opt.show_band) {
 		if (cgf_opt.tilepath<0) { printf("must specify tilepath\n"); cleanup_err(); }
-    if (!cgf_opt.ifn) { printf("provide input CGF file\n"); cleanup_err(); }
-    if ((ifp=fopen(cgf_opt.ifn, "r"))==NULL) { perror(cgf_opt.ifn); cleanup_err(); }
+
+    //if (!cgf_opt.ifn) { printf("provide input CGF file\n"); cleanup_err(); }
+    //if ((ifp=fopen(cgf_opt.ifn, "r"))==NULL) { perror(cgf_opt.ifn); cleanup_err(); }
+
+    if (cgf_opt.ifn.size()==0) { printf("provide input CGF file\n"); cleanup_err(); }
+    if ((ifp=fopen(cgf_opt.ifn.c_str(), "r"))==NULL) { perror(cgf_opt.ifn.c_str()); cleanup_err(); }
 
     cgf = cgf_read(ifp);
     if (!cgf) {
-      printf("CGF read error.  Is %s a valid CGFv3 file?\n", cgf_opt.ifn);
+      printf("CGF read error.  Is %s a valid CGFv3 file?\n", cgf_opt.ifn.c_str());
       cleanup_fail();
     }
 
@@ -348,7 +405,7 @@ int main(int argc, char **argv) {
     }
     */
 
-    idx= cgf_opt.tilepath;
+    idx = cgf_opt.tilepath;
     if (cgf_opt.hiq_only) {
       cgf_output_band_format(cgf, idx, stdout, 1);
     } else {
@@ -358,10 +415,11 @@ int main(int argc, char **argv) {
   }
 
   else if (cgf_opt.show_all) {
-    if ((ifp=fopen(cgf_opt.ifn, "r"))==NULL) { perror(cgf_opt.ifn); cleanup_err(); }
+    //if ((ifp=fopen(cgf_opt.ifn, "r"))==NULL) { perror(cgf_opt.ifn); cleanup_err(); }
+    if ((ifp=fopen(cgf_opt.ifn.c_str(), "r"))==NULL) { perror(cgf_opt.ifn.c_str()); cleanup_err(); }
     cgf = cgf_read(ifp);
     if (!cgf) {
-      printf("CGF read error.  Is %s a valid CGFv3 file?\n", cgf_opt.ifn);
+      printf("CGF read error.  Is %s a valid CGFv3 file?\n", cgf_opt.ifn.c_str());
       cleanup_fail();
     }
     if (ifp!=stdin) { fclose(ifp); }
@@ -372,10 +430,12 @@ int main(int argc, char **argv) {
 
   else if (cgf_opt.info) {
 
-    if ((ifp=fopen(cgf_opt.ifn, "r"))==NULL) { perror(cgf_opt.ifn); cleanup_err(); }
+    //if ((ifp=fopen(cgf_opt.ifn, "r"))==NULL) { perror(cgf_opt.ifn); cleanup_err(); }
+    if ((ifp=fopen(cgf_opt.ifn.c_str(), "r"))==NULL) { perror(cgf_opt.ifn.c_str()); cleanup_err(); }
     cgf = cgf_read(ifp);
     if (!cgf) {
-      printf("CGF read error.  Is %s a valid CGFv3 file?\n", cgf_opt.ifn);
+      //printf("CGF read error.  Is %s a valid CGFv3 file?\n", cgf_opt.ifn);
+      printf("CGF read error.  Is %s a valid CGFv3 file?\n", cgf_opt.ifn.c_str());
       cleanup_fail();
     }
     if (ifp!=stdin) { fclose(ifp); }
@@ -385,19 +445,62 @@ int main(int argc, char **argv) {
 
   }
 
+  else if (cgf_opt.match) {
+
+    if (cgf_opt.ifns.size()!=2) {
+      printf("must provide two cgf files to match\n");
+      cleanup_err();
+    }
+
+    if (!(ifp = fopen(cgf_opt.ifns[0].c_str(), "r"))) {
+      perror(cgf_opt.ifns[0].c_str());
+      cleanup_fail();
+    }
+    //cgf = cgf_read(ifp);
+    cgf = cgf_read_hiq(ifp);
+    if (!cgf) {
+      printf("CGF read error.  Is %s a valid CGFv3 file?\n", cgf_opt.ifn.c_str());
+      cleanup_fail();
+    }
+    fclose(ifp);
+
+    if (!(ifp = fopen(cgf_opt.ifns[1].c_str(), "r"))) {
+      perror(cgf_opt.ifns[1].c_str());
+      cleanup_fail();
+    }
+    //cgf_b = cgf_read(ifp);
+    cgf_b = cgf_read_hiq(ifp);
+    if (!cgf) {
+      printf("CGF read error.  Is %s a valid CGFv3 file?\n", cgf_opt.ifn.c_str());
+      cleanup_fail();
+    }
+    fclose(ifp);
+
+    ifp = NULL;
+
+    //k = cgf_hiq_concordance(&match, &tot, cgf, cgf_b, 0x035e, 0, 0x35e, 34);
+    k = cgf_hiq_concordance( &match, &tot,
+        cgf, cgf_b,
+        cgf_opt.tilepath, cgf_opt.tilestep,
+        cgf_opt.endtilepath, cgf_opt.endtilestep);
+
+    printf("got(%i): %i / %i\n", k, match, tot);
+
+  }
+
+
 
 
 
 
 cgf_cleanup:
-  if (cgf_opt.ifn) { free(cgf_opt.ifn); }
-  if (cgf_opt.ofn) { free(cgf_opt.ofn); }
-  if (cgf_opt.band_ifn) { free(cgf_opt.band_ifn); }
-  if (cgf_opt.tilemap_fn) { free(cgf_opt.tilemap_fn); }
+  //if (cgf_opt.ifn) { free(cgf_opt.ifn); }
+  //if (cgf_opt.ofn) { free(cgf_opt.ofn); }
+  //if (cgf_opt.band_ifn) { free(cgf_opt.band_ifn); }
+  //if (cgf_opt.tilemap_fn) { free(cgf_opt.tilemap_fn); }
   if (ifp && (ifp!=stdin)) { fclose(ifp); }
   if (ofp && (ofp!=stdout)) { fclose(ofp); }
   if (cgf_opt.band_ifp && (cgf_opt.band_ifp!=stdin)) { fclose(cgf_opt.band_ifp); }
   exit(ret);
-
 
 }

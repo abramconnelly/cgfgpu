@@ -273,15 +273,169 @@ size_t gcgf_tilepath_read(cgf_t *cgf, int tilepath_idx, FILE *fp) {
     if (k<0) { return k; }
   }
 
-
   return 0;
-
 }
 
 
+cgf_t *cgf_read_hiq(FILE *fp) {
+  int i, j, k, ch, t;
+  cgf_t *cgf=NULL;
+
+  size_t sz;
+
+  uint64_t u64, i64, offset;
+  uint32_t u32;
+  unsigned char ub[32];
+
+  cgf = new cgf_t;
+
+  // Read Magic
+  //
+  sz = fread(ub, sizeof(char), 8, fp);
+  if (sz!=8) { goto cgf_read_hiq_error; }
+  for (i=0; i<8; i++) {
+    if (ub[i] != CGF_MAGIC[i]) { goto cgf_read_hiq_error; }
+    cgf->Magic[i] = ub[i];
+  }
+
+  // CGF Version
+  //
+  sz = fread(&u32, sizeof(uint32_t), 1, fp);
+  if (sz!=1) { goto cgf_read_hiq_error; }
+
+  cgf->CGFVersion.clear();
+  cgf->CGFVersion.reserve(u32);
+  for (i=0; i<u32; i++) {
+    ch = fgetc(fp);
+    if (ch==EOF) { goto cgf_read_hiq_error; }
+    cgf->CGFVersion += ch;
+  }
+
+  // Library Version
+  //
+  sz = fread(&u32, sizeof(uint32_t), 1, fp);
+  if (sz!=1) { goto cgf_read_hiq_error; }
+
+  cgf->LibraryVersion.clear();
+  cgf->LibraryVersion.reserve(u32);
+  for (i=0; i<u32; i++) {
+    ch = fgetc(fp);
+    if (ch==EOF) { goto cgf_read_hiq_error; }
+    cgf->LibraryVersion += ch;
+  }
+
+  // Tile Path Count
+  //
+  sz = fread(&u64, sizeof(uint64_t), 1, fp);
+  if (sz!=1) { goto cgf_read_hiq_error; }
+  cgf->TilePathCount = u64;
+
+  // TileMap
+  //
+  sz = fread(&u32, sizeof(uint32_t), 1, fp);
+  if (sz!=1) { goto cgf_read_hiq_error; }
+  cgf->TileMap.clear();
+  cgf->TileMap.reserve(u32);
+  for (i=0; i<u32; i++) {
+    ch = fgetc(fp);
+    if (ch==EOF) { goto cgf_read_hiq_error; }
+    cgf->TileMap += ch;
+  }
+
+  // Stride
+  //
+
+  sz = fread(&u32, sizeof(uint32_t), 1, fp);
+  if (sz!=1) { goto cgf_read_hiq_error; }
+  cgf->Stride = u32;
+
+  if (cgf->TilePathCount>0) {
+
+    // Tile Step Count vector
+    //
+    cgf->TileStepCount.clear();
+    for (i=0; i<(int)cgf->TilePathCount; i++) {
+      sz = fread(&u64, sizeof(uint64_t), 1, fp);
+      if (sz!=1) { goto cgf_read_hiq_error; }
+      cgf->TileStepCount.push_back(u64);
+    }
+
+    // Stride Offset
+    //
+
+    cgf->StrideOffset.clear();
+    for (i=0; i<(int)cgf->TilePathCount; i++) {
+      sz = fread(&u64, sizeof(uint64_t), 1, fp);
+      if (sz!=1) { goto cgf_read_hiq_error; }
+      cgf->StrideOffset.push_back(u64);
+    }
+
+    u64 = ((uint64_t)cgf->Stride) * cgf->StrideOffset[ cgf->StrideOffset.size()-1 ];
+    cgf->Loq.resize(u64);
+    sz = fread(&(cgf->Loq[0]), sizeof(unsigned char), u64, fp);
+    if (sz!=u64) { goto cgf_read_hiq_error; }
+
+    u64 = ((uint64_t)cgf->Stride) * cgf->StrideOffset[ cgf->StrideOffset.size()-1 ];
+    cgf->Span.resize(u64);
+    sz = fread(&(cgf->Span[0]), sizeof(unsigned char), u64, fp);
+    if (sz!=u64) { goto cgf_read_hiq_error; }
+
+    u64 = ((uint64_t)cgf->Stride) * cgf->StrideOffset[ cgf->StrideOffset.size()-1 ];
+    cgf->Canon.resize(u64);
+    sz = fread(&(cgf->Canon[0]), sizeof(unsigned char), u64, fp);
+    if (sz!=u64) { goto cgf_read_hiq_error; }
+
+    u64 = ((uint64_t)cgf->Stride) * cgf->StrideOffset[ cgf->StrideOffset.size()-1 ];
+    cgf->CacheOverflow.resize(u64);
+    sz = fread(&(cgf->CacheOverflow[0]), sizeof(unsigned char), u64, fp);
+    if (sz!=u64) { goto cgf_read_hiq_error; }
+
+
+    // simple overflow
+    //
+
+    cgf->OverflowOffset.resize( cgf->TilePathCount );
+    sz = fread(&(cgf->OverflowOffset[0]), sizeof(uint64_t), cgf->TilePathCount, fp);
+    if (sz!=cgf->TilePathCount) { goto cgf_read_hiq_error; }
+
+    u64 = cgf->OverflowOffset[ cgf->OverflowOffset.size()-1 ];
+
+    if (u64>0) {
+
+      cgf->Overflow.resize( u64 );
+      sz = fread(&(cgf->Overflow[0]), sizeof(uint16_t), u64, fp);
+      if (sz!=(u64)) { goto cgf_read_hiq_error; }
+
+    }
+
+    // Overflow that couldn't be stored in the above
+    //
+
+    cgf->Overflow64Offset.resize( cgf->TilePathCount );
+    sz = fread(&(cgf->Overflow64Offset[0]), sizeof(uint64_t), cgf->TilePathCount, fp);
+    if (sz!=cgf->TilePathCount) { goto cgf_read_hiq_error; }
+
+    u64 = cgf->Overflow64Offset[ cgf->Overflow64Offset.size()-1 ];
+
+
+    if (u64>0) {
+      cgf->Overflow64.resize( u64 );
+      sz = fread(&(cgf->Overflow64[0]), sizeof(uint64_t), u64, fp);
+      if (sz!=(u64)) { goto cgf_read_hiq_error; }
+    }
+
+  }
+
+  return cgf;
+
+cgf_read_hiq_error:
+  if (cgf) { delete cgf; }
+  return NULL;
+
+}
+
 cgf_t *cgf_read(FILE *fp) {
   int i, j, k, ch;
-  char buf[1024];
   cgf_t *cgf=NULL;
   tilepath_t *tilepath;
 
