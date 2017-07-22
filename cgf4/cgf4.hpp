@@ -233,6 +233,12 @@ typedef struct cgf_ez_type {
 
 } cgf_ez_t;
 
+typedef struct tilemap_type {
+  std::vector< int > offset;
+  std::vector< int > variant[2];
+} tilemap_t;
+
+int str2tilemap(std::string &s, tilemap_t &tilemap);
 
 const char *read_tilemap_from_file(std::string &, const char *);
 

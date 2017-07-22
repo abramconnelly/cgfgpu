@@ -488,6 +488,21 @@ int main(int argc, char **argv) {
 
   }
 
+  else if (cgf_opt.show_header) {
+    tilemap_t tm;
+
+    if (cgf_opt.ifn.size()==0) { printf("provide input CGF file\n"); cleanup_err(); }
+    if ((ifp=fopen(cgf_opt.ifn.c_str(), "r"))==NULL) { perror(cgf_opt.ifn.c_str()); cleanup_err(); }
+
+    cgf = cgf_read(ifp);
+    if (!cgf) {
+      printf("CGF read error.  Is %s a valid CGFv3 file?\n", cgf_opt.ifn.c_str());
+      cleanup_fail();
+    }
+
+    str2tilemap(cgf->TileMap, tm);
+  }
+
 
 
 

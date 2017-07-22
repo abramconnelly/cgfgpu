@@ -91,4 +91,116 @@ const char *read_tilemap_from_file(std::string &tilemap_str, const char *fn) {
   return tilemap_str.c_str();
 }
 
+int str2tilemap(std::string &s, tilemap_t &tilemap) {
+  int i, j, idx, prev, v;
+  int cur_allele;
+  std::string buf;
+
+  tilemap.offset.clear();
+  tilemap.variant[0].clear();
+  tilemap.variant[1].clear();
+
+  cur_allele=0;
+  idx=0;
+  while (idx<s.size()) {
+    if (s[idx]=='\n')  {
+      tilemap.offset.push_back((int)tilemap.variant[0].size());
+      idx++;
+      cur_allele=0;
+
+      //printf("==\n");
+      continue;
+    }
+
+    if (s[idx]==';') {
+      idx++;
+      continue;
+    }
+
+    if (s[idx]==':') {
+      cur_allele++;
+      idx++;
+      continue;
+    }
+
+    // read tile variant
+    //
+    while ((idx<s.size()) && 
+           ( ((s[idx] >= '0') && (s[idx] <='9')) ||
+             ((s[idx] >= 'a') && (s[idx] <='f')) ||
+             ((s[idx] >= 'A') && (s[idx] <='F')) ) ) {
+      buf += s[idx];
+      idx++;
+    }
+    v = (int)strtol(buf.c_str(), NULL, 16);
+    tilemap.variant[cur_allele].push_back(v);
+    buf.clear();
+
+//    printf("  a%i %i\n", cur_allele, v);
+//    printf("alleles\n");
+//    for (i=0; i<tilemap.variant[0].size(); i++) { printf(" %i", tilemap.variant[0][i]); }
+//    printf("\n");
+//    for (i=0; i<tilemap.variant[1].size(); i++) { printf(" %i", tilemap.variant[1][i]); }
+//    printf("\n");
+
+    // check to see if it's a spanning tile
+    //
+    if ((idx<s.size()) && (s[idx]=='+')) {
+      idx++;
+      while ((idx<s.size()) && 
+             ( ((s[idx] >= '0') && (s[idx] <='9')) ||
+               ((s[idx] >= 'a') && (s[idx] <='f')) ||
+               ((s[idx] >= 'A') && (s[idx] <='F')) ) ) {
+        buf += s[idx];
+        idx++;
+      }
+      v = (int)strtol(buf.c_str(), NULL, 16);
+      for (i=1; i<v; i++) {
+        tilemap.variant[cur_allele].push_back(-1);
+
+        //printf("  a%i -\n", cur_allele);
+      }
+      buf.clear();
+    }
+
+  }
+  tilemap.offset.push_back((int)tilemap.variant[0].size());
+
+  //printf("alleles...\n");
+  //for (i=0; i<tilemap.variant[0].size(); i++) { printf(" %i", tilemap.variant[0][i]); }
+  //printf("\n");
+  //for (i=0; i<tilemap.variant[1].size(); i++) { printf(" %i", tilemap.variant[1][i]); }
+  //printf("\n");
+
+  //DEBUG
+  //
+//  printf(">>>\n");
+//  printf("%s\n", s.c_str());
+//  printf("\n");
+//  printf("tilemap(%i,%i:%i):\n",
+//      (int)tilemap.offset.size(),
+//      (int)tilemap.variant[0].size(),
+//      (int)tilemap.variant[1].size());
+//  for (i=0; i<tilemap.offset.size(); i++) {
+//    printf(" %i", tilemap.offset[i]);
+//  }
+//  printf("\n");
+//
+//  prev = 0;
+//  for (i=0; i<tilemap.offset.size(); i++) {
+//    printf("  (%i) [[", i);
+//    for (j=prev; j<tilemap.offset[i]; j++) {
+//      printf(" %i", tilemap.variant[0][j]);
+//    }
+//    printf("],[");
+//    for (j=prev; j<tilemap.offset[i]; j++) {
+//      printf(" %i", tilemap.variant[1][j]);
+//    }
+//    printf("]]\n");
+//    prev = tilemap.offset[i];
+//  }
+//
+//  printf("\n");
+
+}
 
