@@ -498,14 +498,29 @@ int cgf_hiq_concordance(int *r_match, int *r_tot,
 
   while ((ii<end_noninc_a) && (jj<spillover_knot_b.size())) {
 
-    printf("ii %i (/%i), jj %i (/%i)\n",
-        (int)ii, (int)end_noninc_a,
+    printf("ii %i (/%i %i), jj %i (/%i)\n",
+        (int)ii, (int)end_noninc_a, (int)a->Overflow.size(),
         (int)jj, (int)spillover_knot_b.size());
     fflush(stdout);
+
 
     if ((a->Overflow[ii] - prev_tile_step16_a) > 1) {
       anchor_tile_a = 1;
     }
+
+    if ((spillover_knot_b[jj] - prev_tile_step_b) > 1) {
+      anchor_tile_b = 1;
+    }
+
+    printf("  a->Overflow[%i] %i - prv_step %i = %i (%i)\n",
+      (int)ii, (int)a->Overflow[ii],
+      (int)prev_tile_step16_a,
+      (int)(a->Overflow[ii] - prev_tile_step16_a),
+      anchor_tile_a);
+    printf("  a->Overflow[%i] %i, spillover_knot_b[%i] %i\n",
+        (int)ii, (int)a->Overflow[ii],
+        (int)jj, (int)spillover_knot_b[jj]);
+    fflush(stdout);
 
     if (((int)a->Overflow[ii]) < spillover_knot_b[jj]) {
 
@@ -525,13 +540,16 @@ int cgf_hiq_concordance(int *r_match, int *r_tot,
           (spillover_knot_b[jj+2] == -1)) {
         anchor_tile_b = 0;
       }
-      prev_tile_step16_b = spillover_knot_b[jj];
+      prev_tile_step_b = spillover_knot_b[jj];
 
       jj+=3;
       continue;
     }
 
     if (((int)a->Overflow[ii]) == spillover_knot_b[jj]) {
+
+      printf("cp==\n"); fflush(stdout);
+
       if ( ( ((a->Overflow[ii+1] == OVF16_MAX) && (spillover_knot_b[jj+1]==-1)) ||
              (((int)a->Overflow[ii+1]) == spillover_knot_b[jj+1]) ) &&
 
@@ -543,6 +561,7 @@ int cgf_hiq_concordance(int *r_match, int *r_tot,
 
           //DEBUG
           printf("  spillover ++\n");
+          fflush(stdout);
         }
 
       }
@@ -550,8 +569,8 @@ int cgf_hiq_concordance(int *r_match, int *r_tot,
       if (a->Overflow[ii+1] == OVF16_MAX) { anchor_tile_a = 0; }
       if (a->Overflow[ii+2] == OVF16_MAX) { anchor_tile_a = 0; }
 
-      if (spillover_knot_b[ii+1] == -1) { anchor_tile_b = 0; }
-      if (spillover_knot_b[ii+2] == -1) { anchor_tile_b = 0; }
+      if (spillover_knot_b[jj+1] == -1) { anchor_tile_b = 0; }
+      if (spillover_knot_b[jj+2] == -1) { anchor_tile_b = 0; }
 
       prev_tile_step16_a = a->Overflow[ii];
       prev_tile_step_b = b->Overflow[jj];
