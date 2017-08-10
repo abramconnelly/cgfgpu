@@ -478,6 +478,9 @@ int cgf_hiq_concordance(int *r_match, int *r_tot,
   //
   printf("  non-overflow match: %i (%i)\n", match, tot);
 
+  int do_cache_overflow_vs_overflow = 1;
+  if (do_cache_overflow_vs_overflow) {
+
   // Count overflow - spillover matches
   //
   ii=0;
@@ -550,11 +553,20 @@ int cgf_hiq_concordance(int *r_match, int *r_tot,
 
       printf("cp==\n"); fflush(stdout);
 
+      printf("  a[%i] (%i %i %i) b[%i] (%i %i %i)\n",
+          (int)ii,
+          (int)a->Overflow[ii], (int)a->Overflow[ii+1], (int)a->Overflow[ii+2],
+          (int)jj,
+          spillover_knot_b[jj], spillover_knot_b[jj+1], spillover_knot_b[jj+2]);
+      fflush(stdout);
+
       if ( ( ((a->Overflow[ii+1] == OVF16_MAX) && (spillover_knot_b[jj+1]==-1)) ||
              (((int)a->Overflow[ii+1]) == spillover_knot_b[jj+1]) ) &&
 
            ( ((a->Overflow[ii+2] == OVF16_MAX) && (spillover_knot_b[jj+2]==-1)) ||
              (((int)a->Overflow[ii+2]) == spillover_knot_b[jj+2]) ) ) {
+
+
 
         if ((anchor_tile_a==1) && (anchor_tile_b==1)) {
           match++;
@@ -573,7 +585,8 @@ int cgf_hiq_concordance(int *r_match, int *r_tot,
       if (spillover_knot_b[jj+2] == -1) { anchor_tile_b = 0; }
 
       prev_tile_step16_a = a->Overflow[ii];
-      prev_tile_step_b = b->Overflow[jj];
+      //prev_tile_step_b = b->Overflow[jj];
+      prev_tile_step_b = spillover_knot_b[jj];
 
       ii+=3;
       jj+=3;
@@ -583,6 +596,123 @@ int cgf_hiq_concordance(int *r_match, int *r_tot,
     // should not get here...
     //
     break;
+  }
+
+  //---
+
+  jj=0;
+  if (start_tile_path>0) {
+    jj=b->OverflowOffset[start_tile_path-1];
+  }
+  jjstart=jj;
+
+  ii=0;
+
+  end_noninc_b = b->OverflowOffset[end_tile_path];
+  anchor_tile_a = 1;
+  anchor_tile_b = 1;
+  prev_tile_step_a = 0;
+  prev_tile_step16_b = 0;
+
+  printf("cp b cache overflow -> a overflow ...\n"); fflush(stdout);
+
+  while ((ii<spillover_knot_a.size()) && (jj<end_noninc_b)) {
+
+    printf("ii %i (/%i), jj %i (%i %i)\n",
+        (int)ii, (int)spillover_knot_a.size(),
+        (int)jj, (int)end_noninc_b, (int)b->Overflow.size());
+    fflush(stdout);
+
+
+    if ((spillover_knot_a[ii] - prev_tile_step_a) > 1) {
+      anchor_tile_a = 1;
+    }
+
+    if ((b->Overflow[jj] - prev_tile_step16_b) > 1) {
+      anchor_tile_b = 1;
+    }
+
+    printf("  spillover_knot_a[%i] %i, b->Overflow[%i] %i\n",
+        (int)ii, (int)spillover_knot_a[ii],
+        (int)jj, (int)b->Overflow[jj]);
+    printf("  b->Overflow[%i] %i - prv_step %i = %i (%i)\n",
+      (int)jj, (int)b->Overflow[jj],
+      (int)prev_tile_step16_b,
+      (int)(b->Overflow[jj] - prev_tile_step16_b),
+      anchor_tile_a);
+    fflush(stdout);
+
+    if (((int)b->Overflow[jj]) < spillover_knot_a[ii]) {
+
+      if ((b->Overflow[jj+1] == OVF16_MAX) ||
+          (b->Overflow[jj+2] == OVF16_MAX)) {
+        anchor_tile_b = 0;
+      }
+      prev_tile_step16_b = b->Overflow[jj];
+
+      jj+=3;
+      continue;
+    }
+
+    if (((int)b->Overflow[jj]) > spillover_knot_a[ii]) {
+
+      if ((spillover_knot_a[ii+1] == -1) ||
+          (spillover_knot_a[ii+2] == -1)) {
+        anchor_tile_a = 0;
+      }
+      prev_tile_step_a = spillover_knot_a[ii];
+
+      ii+=3;
+      continue;
+    }
+
+    if (((int)b->Overflow[jj]) == spillover_knot_a[ii]) {
+
+      printf("cp(2)==\n"); fflush(stdout);
+
+      printf("  a[%i] (%i %i %i) b[%i] (%i %i %i)\n",
+          (int)ii,
+          spillover_knot_a[ii], spillover_knot_a[ii+1], spillover_knot_a[ii+2],
+          (int)jj,
+          (int)b->Overflow[jj], (int)b->Overflow[jj+1], (int)b->Overflow[jj+2]);
+      fflush(stdout);
+
+      if ( ( ((b->Overflow[jj+1] == OVF16_MAX) && (spillover_knot_a[ii+1]==-1)) ||
+             (((int)b->Overflow[jj+1]) == spillover_knot_a[ii+1]) ) &&
+
+           ( ((b->Overflow[jj+2] == OVF16_MAX) && (spillover_knot_a[ii+2]==-1)) ||
+             (((int)b->Overflow[jj+2]) == spillover_knot_a[ii+2]) ) ) {
+
+        if ((anchor_tile_a==1) && (anchor_tile_b==1)) {
+          match++;
+
+          //DEBUG
+          printf("  spillover ++\n");
+          fflush(stdout);
+        }
+
+      }
+
+      if (b->Overflow[jj+1] == OVF16_MAX) { anchor_tile_b = 0; }
+      if (b->Overflow[jj+2] == OVF16_MAX) { anchor_tile_b = 0; }
+
+      if (spillover_knot_a[ii+1] == -1) { anchor_tile_a = 0; }
+      if (spillover_knot_a[ii+2] == -1) { anchor_tile_a = 0; }
+
+      //prev_tile_step_a = a->Overflow[ii];
+      prev_tile_step_a = spillover_knot_a[ii];
+      prev_tile_step16_b = b->Overflow[jj];
+
+      ii+=3;
+      jj+=3;
+      continue;
+    }
+
+    // should not get here...
+    //
+    break;
+  }
+
   }
 
   //---
@@ -621,7 +751,7 @@ int cgf_hiq_concordance(int *r_match, int *r_tot,
   
 
   end_noninc_a = a->OverflowOffset[end_tile_path];
-  end_noninc_b = a->OverflowOffset[end_tile_path];
+  end_noninc_b = b->OverflowOffset[end_tile_path];
 
   printf("  [%llu,%llu : %llu,%llu]\n",
       (unsigned long long)ii,
@@ -635,13 +765,17 @@ int cgf_hiq_concordance(int *r_match, int *r_tot,
   prev_tile_step16_a = 0;
   prev_tile_step16_b = 0;
 
+  //DEBUG
+  int do_overflow_overflow = 1;
+  if (do_overflow_overflow) {
+
   while ((ii<end_noninc_a) && (jj<end_noninc_b)) {
 
     if ((a->Overflow[ii] - prev_tile_step16_a) > 1) {
       anchor_tile_a = 1;
     }
 
-    if ((b->Overflow[ii] - prev_tile_step16_b) > 1) {
+    if ((b->Overflow[jj] - prev_tile_step16_b) > 1) {
       anchor_tile_b = 1;
     }
 
@@ -684,10 +818,18 @@ int cgf_hiq_concordance(int *r_match, int *r_tot,
     }
 
     if (a->Overflow[ii] == b->Overflow[jj]) {
-      if ((a->Overflow[ii+1] == b->Overflow[jj+1]) &&
-          (a->Overflow[ii+2] == b->Overflow[jj+2])) {
 
-        if ((anchor_tile_a==1) && (anchor_tile_b==1)) {
+      if (a->Overflow[ii+1] == OVF16_MAX) { anchor_tile_a = 0; }
+      if (a->Overflow[ii+2] == OVF16_MAX) { anchor_tile_a = 0; }
+      if (b->Overflow[jj+1] == OVF16_MAX) { anchor_tile_b = 0; }
+      if (b->Overflow[jj+2] == OVF16_MAX) { anchor_tile_b = 0; }
+
+
+      if ((anchor_tile_a==1) && (anchor_tile_b==1)) {
+
+        if ((a->Overflow[ii+1] == b->Overflow[jj+1]) &&
+            (a->Overflow[ii+2] == b->Overflow[jj+2])) {
+
           match++;
 
           //DEBUG
@@ -695,11 +837,6 @@ int cgf_hiq_concordance(int *r_match, int *r_tot,
         }
 
       }
-
-      if (a->Overflow[ii+1] == OVF16_MAX) { anchor_tile_a = 0; }
-      if (a->Overflow[ii+2] == OVF16_MAX) { anchor_tile_a = 0; }
-      if (b->Overflow[ii+1] == OVF16_MAX) { anchor_tile_b = 0; }
-      if (b->Overflow[ii+2] == OVF16_MAX) { anchor_tile_b = 0; }
 
       prev_tile_step16_a = a->Overflow[ii];
       prev_tile_step16_b = b->Overflow[jj];
@@ -712,6 +849,9 @@ int cgf_hiq_concordance(int *r_match, int *r_tot,
     // should not get here...
     //
     break;
+  }
+  
+  //DEBUG do_overflow_overflow
   }
 
 
