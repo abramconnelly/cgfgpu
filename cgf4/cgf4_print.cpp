@@ -178,6 +178,7 @@ void cgf_print(cgf_t *cgf) {
 
       printf("}");
     }
+    printf("\n");
 
 
 

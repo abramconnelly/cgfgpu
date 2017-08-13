@@ -45,6 +45,7 @@ typedef struct cgf_opt_type {
   int hiq_only;
 
   int match;
+  int run_sanity;
 
   int tilepath, endtilepath;
   int tilestep, endtilestep;
@@ -62,6 +63,8 @@ static struct option long_options[] = {
   {"ez-print",            no_argument,        NULL, 'Z'},
   {"hiq",                 no_argument,        NULL, 'q'},
   {"match",               no_argument,        NULL, 'm'},
+  {"sanity",              no_argument,        NULL, 'Y'},
+
   {"band",                required_argument,  NULL, 'b'},
   {"encode",              required_argument,  NULL, 'e'},
 
@@ -90,7 +93,7 @@ void init_cgf_opt(cgf_opt_t *opt) {
   opt->create_container=0;
   opt->tilemap=0;
   opt->show_all=0;
-  opt->ez_print;
+  opt->ez_print=0;
   opt->run_test=0;
   opt->info=0;
 
@@ -106,6 +109,7 @@ void init_cgf_opt(cgf_opt_t *opt) {
   //opt->band_ifn = NULL;
 
   opt->band_ifp = NULL;
+  opt->run_sanity = 0;
 
   opt->cgf_version_str = CGF_VERSION;
   opt->update_cgf_version = 0;
@@ -148,9 +152,9 @@ void show_help() {
   printf("  [-T|--opt-version vopt]     CGF version option.  Must be one of \"default\" or \"noc-inv\"\n");
   printf("  [-L|--library-version lopt] CGF library version option.  Overwrites default value if specified\n");
   printf("  [-U|--update-header]        Update header only\n");
+  printf("  [-Y|--sanity]               Run sanity checks\n");
   printf("  [-q|--hiq]                  Only output high quality information (band output)\n");
   printf("\n");
-
 }
 
 void show_version() {
@@ -173,12 +177,13 @@ int main(int argc, char **argv) {
 
   init_cgf_opt(&cgf_opt);
 
-  while ((opt = getopt_long(argc, argv, "Hb:e:i:o:Ct:T:L:U:hvVAZRIqmp:P:s:S:", long_options, &option_index))!=-1) switch (opt) {
+  while ((opt = getopt_long(argc, argv, "Hb:e:i:o:Ct:T:L:U:hvVAZRIqmp:P:s:S:Y", long_options, &option_index))!=-1) switch (opt) {
     case 0:
       fprintf(stderr, "sanity error, invalid option to parse, exiting\n");
       exit(-1);
       break;
     case 'H': cgf_opt.show_header=1; break;
+    case 'Y': cgf_opt.run_sanity=1; break;
     case 'C': cgf_opt.create_container=1; break;
     case 'I': cgf_opt.info=1; break;
     case 't': cgf_opt.tilemap=1; cgf_opt.tilemap_fn=strdup(optarg); break;
@@ -246,6 +251,7 @@ int main(int argc, char **argv) {
        cgf_opt.run_test +
        cgf_opt.info +
        cgf_opt.match +
+       cgf_opt.run_sanity +
        cgf_opt.update_header) == 0) {
     cleanup_ok();
   }
@@ -260,6 +266,7 @@ int main(int argc, char **argv) {
        cgf_opt.show_all +
        cgf_opt.run_test +
        cgf_opt.match +
+       cgf_opt.run_sanity +
        cgf_opt.info) > 0) {
     cgf_opt.update_header = 0;
   }
@@ -275,8 +282,22 @@ int main(int argc, char **argv) {
        cgf_opt.run_test +
        cgf_opt.info +
        cgf_opt.match +
+       cgf_opt.run_sanity +
        cgf_opt.update_header) != 1) {
     printf("must specify exactly one of show header (-H), show band (-b), encode (-e), delete (-d), create empty container (-C) or update header (-U)\n");
+
+printf("cc %i\n", cgf_opt.create_container);
+printf("enc %i\n", cgf_opt.encode);
+printf("de %i\n", cgf_opt.del);
+printf("sb %i\n", cgf_opt.show_band);
+printf("sh %i\n", cgf_opt.show_header);
+printf("sa %i\n", cgf_opt.show_all);
+printf("rt %i\n", cgf_opt.run_test);
+printf("in %i\n", cgf_opt.info);
+printf("m %i\n", cgf_opt.match);
+printf("rs %i\n", cgf_opt.run_sanity);
+printf("uh %i\n", cgf_opt.update_header);
+
     cleanup_err();
   }
 
@@ -410,6 +431,25 @@ int main(int argc, char **argv) {
       cgf_output_band_format(cgf, idx, stdout, 1);
     } else {
       cgf_output_band_format(cgf, idx, stdout, 0);
+    }
+
+  }
+
+  else if (cgf_opt.run_sanity) {
+    if (cgf_opt.ifn.size()==0) { printf("provide input CGF file\n"); cleanup_err(); }
+    if ((ifp=fopen(cgf_opt.ifn.c_str(), "r"))==NULL) { perror(cgf_opt.ifn.c_str()); cleanup_err(); }
+
+    cgf = cgf_read(ifp);
+    if (!cgf) {
+      printf("CGF read error.  Is %s a valid CGFv3 file?\n", cgf_opt.ifn.c_str());
+      cleanup_fail();
+    }
+
+    ret = cgf_sanity(cgf);
+    if (ret==0) {
+      printf("ok\n");
+    } else {
+      printf("sanity error %i\n", ret);
     }
 
   }

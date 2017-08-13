@@ -287,6 +287,25 @@ int cgf_sanity(cgf_t *cgf);
 // concordance
 //
 
+// Return matching concordance of overflow vectors.
+// Overflow vectors are packed triples of the form:
+//
+//     tilestep vara varb ...
+//
+// with -1 indicating a spanning tile for vara and varb.
+//
+// Since the comparison needs to be done on a 'knot by knot' basis,
+// the processing is a little more complicated than just a straight vector
+// compare.
+//
+int overflow_concordance16(int *r_match, int *r_tot,
+                           std::vector<uint16_t> &a_overflow, int start_a, int end_noninc_a,
+                           std::vector<uint16_t> &b_overflow, int start_b, int end_noninc_b);
+
+
+// r_match will hold the number of high quality matches
+// r_tot will hold the number of high quality tiles present in both cgfs
+//
 int cgf_hiq_concordance(int *r_match, int *r_tot,
                         cgf_t *a, cgf_t *b,
                         int start_tile_path, int start_tile_step,

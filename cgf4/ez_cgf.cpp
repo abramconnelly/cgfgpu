@@ -805,6 +805,13 @@ void ez_create(tilepath_ez_t &ez, tilepath_vec_t &tilepath, std::map< std::strin
     }
     tilestep++;
   }
+
+  //EXPERIMENTAL
+  //
+  //pad remaining bits with loq flag
+  //
+  for (; i<8; i++) { u8 |= (1<<i); }
+
   ez.loq_bv.push_back(u8);
 
   //
@@ -1006,7 +1013,8 @@ void ez_create(tilepath_ez_t &ez, tilepath_vec_t &tilepath, std::map< std::strin
             // Add it to overflow array if we've surpassed the
             // space alotted for hexit values.
             //
-            if (hexit_vec.size()>=8) { cf=0; }
+            //if (hexit_vec.size()>=8) { cf=0; }
+            if (hexit_vec.size()>8) { cf=0; }
 
           } else {
 
@@ -1103,7 +1111,7 @@ void ez_create(tilepath_ez_t &ez, tilepath_vec_t &tilepath, std::map< std::strin
             // add to overflow here if it surpasses the space
             // we have in the hexit cache area
             //
-            if (hexit_vec.size()>=8) {
+            if (hexit_vec.size()>8) {
               ez.ovf_vec.push_back((int16_t)tilestep);
               ez.ovf_vec.push_back((int16_t)tilepath.allele[0][tilestep]);
               ez.ovf_vec.push_back((int16_t)tilepath.allele[1][tilestep]);
@@ -1320,7 +1328,8 @@ void ez_create(tilepath_ez_t &ez, tilepath_vec_t &tilepath, std::map< std::strin
               printf("    hexit_vec: %i (len %i)\n", tilemap_it->second, (int)hexit_vec.size());
             }
 
-            if (hexit_vec.size()>=8) { cf = 0; }
+            //if (hexit_vec.size()>=8) { cf = 0; }
+            if (hexit_vec.size()>8) { cf = 0; }
 
             if (loc_debug) {
               printf("    (cf %i)\n", cf);
@@ -1410,7 +1419,8 @@ void ez_create(tilepath_ez_t &ez, tilepath_vec_t &tilepath, std::map< std::strin
               printf(" hexit++ tilestep %i, tilemapval %i\n", tilestep, tilemap_it->second);
             }
 
-            if (hexit_vec.size()>=8) {
+            //if (hexit_vec.size()>=8) {
+            if (hexit_vec.size()>8) {
 
               if (loc_debug) {
                 printf(" cache ovf (%i %i %i)\n",
@@ -1499,6 +1509,16 @@ void ez_create(tilepath_ez_t &ez, tilepath_vec_t &tilepath, std::map< std::strin
 
   //DEBUG
   if (loc_debug) {
+
+    printf("ez.ovf_vec(%i):\n", (int)ez.ovf_vec.size());
+    for (i=0; i<ez.ovf_vec.size(); i+=3) {
+      printf("  [%i] %i %i %i\n", i,
+          (int)ez.ovf_vec[i],
+          (int)ez.ovf_vec[i+1],
+          (int)ez.ovf_vec[i+2]);
+    }
+    printf("\n");
+
     printf("ROUGH_COUNT: %i\n", ROUGH_COUNT);
     printf("TILEM_OVF_COUNT: %i\n", TILEM_OVF_COUNT);
     printf("HEXIT_OVF_COUNT: %i\n", HEXIT_OVF_COUNT);

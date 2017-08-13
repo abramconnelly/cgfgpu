@@ -6,6 +6,8 @@
 #include <string>
 #include <map>
 
+int VERBOSE_MATCH;
+
 typedef struct tileband_type {
   std::vector< int > v[2];
   std::vector< std::vector< int > > noc_v[2];
@@ -62,7 +64,12 @@ int tileband_concordance(tileband_t &a, tileband_t &b, int s, int n, int hiq_fla
                 break;
               }
             }
-            if (is_match) { match++; }
+            if (is_match) {
+
+              if (VERBOSE_MATCH) { printf("MATCH %i+%i\n", idx_a, knot_a_len); }
+
+              match++;
+            }
           }
         }
 
@@ -78,7 +85,12 @@ int tileband_concordance(tileband_t &a, tileband_t &b, int s, int n, int hiq_fla
               break;
             }
           }
-          if (is_match) { match++; }
+          if (is_match) {
+
+            if (VERBOSE_MATCH) { printf("MATCH %i+%i\n", idx_a, knot_a_len); }
+
+            match++;
+          }
         }
 
       }
@@ -248,6 +260,8 @@ int main(int argc, char **argv) {
   tileband_t tileband_a, tileband_b;
   std::string ifn_a, ifn_b;
   int match=0, tot=0;
+
+  VERBOSE_MATCH=1;
 
   if (argc!=3) {
     printf("provide two band files\n");
