@@ -98,7 +98,7 @@ int overflow_concordance16(int *r_match, int *r_tot,
   uint16_t prev_tile_step16_a, prev_tile_step16_b;
   int match=0, tot=0;
 
-  int loc_debug = 0;
+  int loc_debug = 1;
 
   if ( ((end_noninc_b-start_b)==0) ||
        ((end_noninc_a-start_a)==0)) {
@@ -430,7 +430,7 @@ int cgf_hiq_concordance(int *r_match, int *r_tot,
                         cgf_t *a, cgf_t *b,
                         int start_tile_path, int start_tile_step,
                         int end_tile_path_inc, int end_tile_step_inc) {
-  int loc_debug = 0;
+  int loc_debug = 1;
 
   int i, j, k, p;
   uint64_t ii, jj, end_noninc_a, end_noninc_b;
@@ -468,10 +468,10 @@ int cgf_hiq_concordance(int *r_match, int *r_tot,
   int prev_tile_step_a, prev_tile_step_b;
 
   int tile_step_block_start;
-  int anchor_tile_a, anchor_tile_b;
   int tile_offset;
 
   int stride;
+  int tilepath_idx;
 
   int start_block_tile = 0;
   int idx, z;
@@ -513,7 +513,10 @@ int cgf_hiq_concordance(int *r_match, int *r_tot,
   overflow64_a = &(a->Overflow64[0]);
   overflow64_b = &(b->Overflow64[0]);
 
+  str2tilemap(a->TileMap, tilemap);
+
   stride = a->Stride;
+  tilepath_idx = start_tile_path;
 
   start_pos = 0;
   if (start_tile_path>0) {
@@ -543,9 +546,15 @@ int cgf_hiq_concordance(int *r_match, int *r_tot,
     printf("n_q %i, n_q_end %i\n", n_q, n_q_end);
   }
 
-  start_block_tile = start_tile_step / 32;
+  //start_block_tile = start_tile_step / 32;
+  start_block_tile = start_tile_step / (8*stride);
 
   for (ii=n_q; ii<=n_q_end; ii++, start_block_tile+=32) {
+
+    // Reset relevant tile path and tile step information
+    //
+    //if (ii >= a->StrideOffset[tilepath_idx]) { start_block_tile=0; }
+
 
     env_mask_a = 0xffffffff;
     env_mask_b = 0xffffffff;
@@ -555,8 +564,6 @@ int cgf_hiq_concordance(int *r_match, int *r_tot,
       env_mask_b &= (0xffffffff << (start_tile_step%32));
     }
 
-    // TODO: edge case when n_q == n_q_end
-    //
     if (ii==n_q_end) {
       env_mask_a &= (0xffffffff >> (31-(end_tile_step_inc%32)));
       env_mask_b &= (0xffffffff >> (31-(end_tile_step_inc%32)));
@@ -621,9 +628,8 @@ int cgf_hiq_concordance(int *r_match, int *r_tot,
 
 
     // The total number of high quality matches is the number of high quality
-    // tiles both have in common
+    // tiles both have in common, excluding the non-anchor high quality tiles
     //
-    //tot += NumberOfSetBits32( hiq_mask_a & hiq_mask_b );
     tot += NumberOfSetBits32( hiq_mask_a & hiq_mask_b & (~non_anchor_span_mask_a) & (~non_anchor_span_mask_b) );
 
     // Count the number of canonical matches.
@@ -802,799 +808,211 @@ int cgf_hiq_concordance(int *r_match, int *r_tot,
     if (loc_debug) { printf("  +match %i, +tot %i\n", match, tot); }
 
 
-  }
+    // EXPERIMENTAL
+  //}
 
-  // DEBUG
-  //
-  if (loc_debug) {
-    printf("---\n");
-    for (i=0; i<spillover_a.size(); i+=2) {
-      printf("  spillover_a[%i] step:%i tilemapid:%i\n", i, spillover_a[i], spillover_a[i+1]);
+		//  __ _ _ ___ ______ _____ _____ _ _
+		// / _| '_/ _ (_-<_-</ _ \ V / -_) '_|
+		// \__|_| \___/__/__/\___/\_/\___|_|
+		//
+
+		if (loc_debug) {
+      printf("  ## ii %i, (ii+1) = %i, strideoffset[%i] %i\n",
+          (int)ii, (int)((ii+1)),
+          (int)tilepath_idx, (int)(a->StrideOffset[tilepath_idx]));
     }
-    printf("---\n");
-    for (i=0; i<spillover_b.size(); i+=2) {
-      printf("  spillover_b[%i] step:%i tilemapid:%i\n", i, spillover_b[i], spillover_b[i+1]);
-    }
-    printf("---\n");
-  }
-
-  str2tilemap(a->TileMap, tilemap);
-
-  //TODO WORK IN PROGRESS...
-  //
-  // Transfer cache spillover to unpacked spillover for easy comparison with
-  // the overflow arrays
-  //
-  for (i=0; i<spillover_a.size(); i+=2) {
-    tile_offset=0;
-    for ( j=tilemap.offset[ spillover_a[i+1]-1 ]; j<tilemap.offset[spillover_a[i+1]]; j++) {
-      spillover_knot_a.push_back(spillover_a[i] + tile_offset);
-      spillover_knot_a.push_back( tilemap.variant[0][j] );
-      spillover_knot_a.push_back( tilemap.variant[1][j] );
-
-      spillover16_knot_a.push_back(spillover_a[i] + tile_offset);
-      u16 = ((tilemap.variant[0][j] < 0) ? OVF16_MAX : (uint16_t)tilemap.variant[0][j]);
-      spillover16_knot_a.push_back( tilemap.variant[0][j] );
-      u16 = ((tilemap.variant[1][j] < 0) ? OVF16_MAX : (uint16_t)tilemap.variant[1][j]);
-      spillover16_knot_a.push_back( tilemap.variant[1][j] );
-
-      tile_offset++;
-    }
-  }
-
-  for (i=0; i<spillover_b.size(); i+=2) {
-    tile_offset=0;
-    for ( j=tilemap.offset[ spillover_b[i+1]-1 ]; j<tilemap.offset[spillover_b[i+1]]; j++) {
-      spillover_knot_b.push_back(spillover_b[i] + tile_offset);
-      spillover_knot_b.push_back( tilemap.variant[0][j] );
-      spillover_knot_b.push_back( tilemap.variant[1][j] );
-
-      spillover16_knot_b.push_back((uint16_t)(spillover_b[i] + tile_offset));
-      u16 = ((tilemap.variant[0][j] < 0) ? OVF16_MAX : (uint16_t)tilemap.variant[0][j]);
-      spillover16_knot_b.push_back( u16 );
-      u16 = ((tilemap.variant[1][j] < 0) ? OVF16_MAX : (uint16_t)tilemap.variant[1][j]);
-      spillover16_knot_b.push_back( u16 );
-
-      tile_offset++;
-    }
-  }
-
-  if (loc_debug) {
-    printf("spillover_knot_a:\n");
-    for (i=0; i<spillover_knot_a.size(); i+=3) {
-      printf(" [%i] %i %i %i (%i %i %i)\n",
-          i,
-          spillover_knot_a[i],
-          spillover_knot_a[i+1],
-          spillover_knot_a[i+2],
-
-          (int)spillover16_knot_a[i],
-          (int)spillover16_knot_a[i+1],
-          (int)spillover16_knot_a[i+2]
-          );
-    }
-    printf("\n");
-    printf("---\n");
-
-    printf("spillover_knot_b:\n");
-    for (i=0; i<spillover_knot_b.size(); i+=3) {
-      printf(" [%i] %i %i %i (%i %i %i)\n",
-          i,
-          spillover_knot_b[i],
-          spillover_knot_b[i+1],
-          spillover_knot_b[i+2],
-
-          (int)spillover16_knot_b[i],
-          (int)spillover16_knot_b[i+1],
-          (int)spillover16_knot_b[i+2]);
-    }
-    printf("\n");
 
 
-    //DEBUG
+    // If we've crossed a tilepath boundary, check the spillover
     //
-    printf("  non-overflow match: %i (%i)\n", match, tot);
-  }
+    if ( (ii+1) >= a->StrideOffset[tilepath_idx]) {
 
-
-  int do_cache_overflow_vs_overflow = 2;
-  if (do_cache_overflow_vs_overflow==2) {
-    ii=0;
-    if (start_tile_path>0) {
-      ii=a->OverflowOffset[start_tile_path-1];
-    }
-    iistart=ii;
-
-    end_noninc_a = a->OverflowOffset[end_tile_path_inc];
-    end_noninc_b = b->OverflowOffset[end_tile_path_inc];
-
-    if (loc_debug) {
-      printf("\nA OVERFLOW[%i-%i] ** SPILLOVER B [%i-%i]\n",
-          (int)iistart, (int)end_noninc_a,
-          0, (int)spillover16_knot_b.size());
-    }
-
-    t_match=0; t_tot=0;
-    overflow_concordance16(&t_match, &t_tot,
-                           a->Overflow, iistart, end_noninc_a,
-                           spillover16_knot_b, 0, (int)spillover16_knot_b.size());
-    match += t_match;
-    //tot += tot;
-
-
-    jj=0;
-    if (start_tile_path>0) { jj=b->OverflowOffset[start_tile_path-1]; }
-    jjstart=jj;
-
-    if (loc_debug) {
-      printf("\nB OVERFLOW[%i-%i] ** SPILLOVER A[%i-%i]\n",
-          (int)jjstart, (int)end_noninc_b,
-          0, (int)spillover16_knot_a.size()
-          );
-    }
-
-    t_match=0; t_tot = 0;
-    overflow_concordance16(&t_match, &t_tot,
-                           spillover16_knot_a, 0, (int)spillover16_knot_a.size(),
-                           b->Overflow, jjstart, end_noninc_b);
-    match += t_match;
-    //tot += tot;
-
-
-
-  }
-  else if (do_cache_overflow_vs_overflow==1) {
-
-  // Count overflow - spillover matches
-  //
-  ii=0;
-  if (start_tile_path>0) {
-    ii=a->OverflowOffset[start_tile_path-1];
-  }
-  iistart=ii;
-
-  jj=0;
-
-  end_noninc_a = a->OverflowOffset[end_tile_path_inc];
-  anchor_tile_a = 1;
-  anchor_tile_b = 1;
-  prev_tile_step16_a = 0;
-  prev_tile_step_b = 0;
-
-  if (loc_debug) { printf("cp...\n"); fflush(stdout); }
-
-  while ((ii<end_noninc_a) && (jj<spillover_knot_b.size())) {
-
-    if (loc_debug) {
-      printf("ii %i (/%i %i), jj %i (/%i)\n",
-          (int)ii, (int)end_noninc_a, (int)a->Overflow.size(),
-          (int)jj, (int)spillover_knot_b.size());
-      fflush(stdout);
-    }
-
-
-    if ((a->Overflow[ii] - prev_tile_step16_a) > 1) {
-      anchor_tile_a = 1;
-    }
-
-    if ((spillover_knot_b[jj] - prev_tile_step_b) > 1) {
-      anchor_tile_b = 1;
-    }
-
-    if (loc_debug) {
-      printf("  a->Overflow[%i] %i - prv_step %i = %i (%i)\n",
-        (int)ii, (int)a->Overflow[ii],
-        (int)prev_tile_step16_a,
-        (int)(a->Overflow[ii] - prev_tile_step16_a),
-        anchor_tile_a);
-      printf("  a->Overflow[%i] %i, spillover_knot_b[%i] %i\n",
-          (int)ii, (int)a->Overflow[ii],
-          (int)jj, (int)spillover_knot_b[jj]);
-      fflush(stdout);
-    }
-
-    if (((int)a->Overflow[ii]) < spillover_knot_b[jj]) {
-
-      if ((a->Overflow[ii+1] == OVF16_MAX) ||
-          (a->Overflow[ii+2] == OVF16_MAX)) {
-        anchor_tile_a = 0;
+      // DEBUG
+      //
+      if (loc_debug) {
+        printf("SPILLOVER CALC\n");
+        printf("---\n");
+        for (i=0; i<spillover_a.size(); i+=2) {
+          printf("  spillover_a[%i] step:%i tilemapid:%i\n", i, spillover_a[i], spillover_a[i+1]);
+        }
+        printf("---\n");
+        for (i=0; i<spillover_b.size(); i+=2) {
+          printf("  spillover_b[%i] step:%i tilemapid:%i\n", i, spillover_b[i], spillover_b[i+1]);
+        }
+        printf("---\n");
       }
-      prev_tile_step16_a = a->Overflow[ii];
 
-      ii+=3;
-      continue;
-    }
+      // Transfer cache spillover to unpacked spillover for easy comparison with
+      // the Overflow arrays
+      //
+      spillover_knot_a.clear();
+      for (i=0; i<spillover_a.size(); i+=2) {
+        tile_offset=0;
+        for ( j=tilemap.offset[ spillover_a[i+1]-1 ]; j<tilemap.offset[spillover_a[i+1]]; j++) {
+          spillover_knot_a.push_back(spillover_a[i] + tile_offset);
+          spillover_knot_a.push_back( tilemap.variant[0][j] );
+          spillover_knot_a.push_back( tilemap.variant[1][j] );
 
-    if (((int)a->Overflow[ii]) > spillover_knot_b[jj]) {
+          spillover16_knot_a.push_back(spillover_a[i] + tile_offset);
+          u16 = ((tilemap.variant[0][j] < 0) ? OVF16_MAX : (uint16_t)tilemap.variant[0][j]);
+          spillover16_knot_a.push_back( tilemap.variant[0][j] );
+          u16 = ((tilemap.variant[1][j] < 0) ? OVF16_MAX : (uint16_t)tilemap.variant[1][j]);
+          spillover16_knot_a.push_back( tilemap.variant[1][j] );
 
-      if ((spillover_knot_b[jj+1] == -1) ||
-          (spillover_knot_b[jj+2] == -1)) {
-        anchor_tile_b = 0;
+          tile_offset++;
+        }
       }
-      prev_tile_step_b = spillover_knot_b[jj];
+      spillover_a.clear();
 
-      jj+=3;
-      continue;
-    }
+      spillover_knot_b.clear();
+      for (i=0; i<spillover_b.size(); i+=2) {
+        tile_offset=0;
+        for ( j=tilemap.offset[ spillover_b[i+1]-1 ]; j<tilemap.offset[spillover_b[i+1]]; j++) {
+          spillover_knot_b.push_back(spillover_b[i] + tile_offset);
+          spillover_knot_b.push_back( tilemap.variant[0][j] );
+          spillover_knot_b.push_back( tilemap.variant[1][j] );
 
-    if (((int)a->Overflow[ii]) == spillover_knot_b[jj]) {
+          spillover16_knot_b.push_back((uint16_t)(spillover_b[i] + tile_offset));
+          u16 = ((tilemap.variant[0][j] < 0) ? OVF16_MAX : (uint16_t)tilemap.variant[0][j]);
+          spillover16_knot_b.push_back( u16 );
+          u16 = ((tilemap.variant[1][j] < 0) ? OVF16_MAX : (uint16_t)tilemap.variant[1][j]);
+          spillover16_knot_b.push_back( u16 );
+
+          tile_offset++;
+        }
+      }
+      spillover_b.clear();
 
       if (loc_debug) {
-        printf("cp==\n"); fflush(stdout);
+        printf("spillover_knot_a:\n");
+        for (i=0; i<spillover_knot_a.size(); i+=3) {
+          printf(" [%i] %i %i %i (%i %i %i)\n",
+              i,
+              spillover_knot_a[i],
+              spillover_knot_a[i+1],
+              spillover_knot_a[i+2],
 
-        printf("  a[%i] (%i %i %i) b[%i] (%i %i %i)\n",
-            (int)ii,
-            (int)a->Overflow[ii], (int)a->Overflow[ii+1], (int)a->Overflow[ii+2],
-            (int)jj,
-            spillover_knot_b[jj], spillover_knot_b[jj+1], spillover_knot_b[jj+2]);
-        fflush(stdout);
-      }
-
-      if ( ( ((a->Overflow[ii+1] == OVF16_MAX) && (spillover_knot_b[jj+1]==-1)) ||
-             (((int)a->Overflow[ii+1]) == spillover_knot_b[jj+1]) ) &&
-
-           ( ((a->Overflow[ii+2] == OVF16_MAX) && (spillover_knot_b[jj+2]==-1)) ||
-             (((int)a->Overflow[ii+2]) == spillover_knot_b[jj+2]) ) ) {
-
-
-
-        if ((anchor_tile_a==1) && (anchor_tile_b==1)) {
-          match++;
-
-
-          //DEBUG
-          if (loc_debug) {
-            printf("  spillover ++\n");
-            fflush(stdout);
-          }
+              (int)spillover16_knot_a[i],
+              (int)spillover16_knot_a[i+1],
+              (int)spillover16_knot_a[i+2]
+              );
         }
+        printf("\n");
+        printf("---\n");
 
+        printf("spillover_knot_b:\n");
+        for (i=0; i<spillover_knot_b.size(); i+=3) {
+          printf(" [%i] %i %i %i (%i %i %i)\n",
+              i,
+              spillover_knot_b[i],
+              spillover_knot_b[i+1],
+              spillover_knot_b[i+2],
+
+              (int)spillover16_knot_b[i],
+              (int)spillover16_knot_b[i+1],
+              (int)spillover16_knot_b[i+2]);
+        }
+        printf("\n");
+
+
+        //DEBUG
+        //
+        printf("  non-overflow match: %i (%i)\n", match, tot);
       }
 
-      if (a->Overflow[ii+1] == OVF16_MAX) { anchor_tile_a = 0; }
-      if (a->Overflow[ii+2] == OVF16_MAX) { anchor_tile_a = 0; }
 
-      if (spillover_knot_b[jj+1] == -1) { anchor_tile_b = 0; }
-      if (spillover_knot_b[jj+2] == -1) { anchor_tile_b = 0; }
-
-      prev_tile_step16_a = a->Overflow[ii];
-      //prev_tile_step_b = b->Overflow[jj];
-      prev_tile_step_b = spillover_knot_b[jj];
-
-      ii+=3;
-      jj+=3;
-      continue;
-    }
-
-    // should not get here...
-    //
-    break;
-  }
-
-  //---
-
-  jj=0;
-  if (start_tile_path>0) {
-    jj=b->OverflowOffset[start_tile_path-1];
-  }
-  jjstart=jj;
-
-  ii=0;
-
-  end_noninc_b = b->OverflowOffset[end_tile_path_inc];
-  anchor_tile_a = 1;
-  anchor_tile_b = 1;
-  prev_tile_step_a = 0;
-  prev_tile_step16_b = 0;
-
-  if (loc_debug) {
-    printf("cp b cache overflow -> a overflow ...\n"); fflush(stdout);
-  }
-
-  while ((ii<spillover_knot_a.size()) && (jj<end_noninc_b)) {
-
-    if (loc_debug) {
-      printf("ii %i (/%i), jj %i (%i %i)\n",
-          (int)ii, (int)spillover_knot_a.size(),
-          (int)jj, (int)end_noninc_b, (int)b->Overflow.size());
-      fflush(stdout);
-    }
-
-
-    if ((spillover_knot_a[ii] - prev_tile_step_a) > 1) {
-      anchor_tile_a = 1;
-    }
-
-    if ((b->Overflow[jj] - prev_tile_step16_b) > 1) {
-      anchor_tile_b = 1;
-    }
-
-    if (loc_debug) {
-      printf("  spillover_knot_a[%i] %i, b->Overflow[%i] %i\n",
-          (int)ii, (int)spillover_knot_a[ii],
-          (int)jj, (int)b->Overflow[jj]);
-      printf("  b->Overflow[%i] %i - prv_step %i = %i (%i)\n",
-        (int)jj, (int)b->Overflow[jj],
-        (int)prev_tile_step16_b,
-        (int)(b->Overflow[jj] - prev_tile_step16_b),
-        anchor_tile_a);
-      fflush(stdout);
-    }
-
-    if (((int)b->Overflow[jj]) < spillover_knot_a[ii]) {
-
-      if ((b->Overflow[jj+1] == OVF16_MAX) ||
-          (b->Overflow[jj+2] == OVF16_MAX)) {
-        anchor_tile_b = 0;
+      iistart=0;
+      if (tilepath_idx>0) {
+        iistart=a->OverflowOffset[tilepath_idx-1];
       }
-      prev_tile_step16_b = b->Overflow[jj];
 
-      jj+=3;
-      continue;
-    }
-
-    if (((int)b->Overflow[jj]) > spillover_knot_a[ii]) {
-
-      if ((spillover_knot_a[ii+1] == -1) ||
-          (spillover_knot_a[ii+2] == -1)) {
-        anchor_tile_a = 0;
+      jjstart=0;
+      if (tilepath_idx>0) {
+        jjstart=b->OverflowOffset[tilepath_idx-1];
       }
-      prev_tile_step_a = spillover_knot_a[ii];
 
-      ii+=3;
-      continue;
-    }
+      //end_noninc_a = a->OverflowOffset[end_tile_path_inc];
+      //end_noninc_b = b->OverflowOffset[end_tile_path_inc];
 
-    if (((int)b->Overflow[jj]) == spillover_knot_a[ii]) {
+      end_noninc_a = a->OverflowOffset[tilepath_idx];
+      end_noninc_b = b->OverflowOffset[tilepath_idx];
 
       if (loc_debug) {
-        printf("cp(2)==\n"); fflush(stdout);
-
-        printf("  a[%i] (%i %i %i) b[%i] (%i %i %i)\n",
-            (int)ii,
-            spillover_knot_a[ii], spillover_knot_a[ii+1], spillover_knot_a[ii+2],
-            (int)jj,
-            (int)b->Overflow[jj], (int)b->Overflow[jj+1], (int)b->Overflow[jj+2]);
-        fflush(stdout);
+        printf("\nA OVERFLOW[%i-%i] ** SPILLOVER B [%i-%i]\n",
+            (int)iistart, (int)end_noninc_a,
+            0, (int)spillover16_knot_b.size());
       }
 
-      if ( ( ((b->Overflow[jj+1] == OVF16_MAX) && (spillover_knot_a[ii+1]==-1)) ||
-             (((int)b->Overflow[jj+1]) == spillover_knot_a[ii+1]) ) &&
+      t_match=0; t_tot=0;
+      overflow_concordance16(&t_match, &t_tot,
+                             a->Overflow, iistart, end_noninc_a,
+                             spillover16_knot_b, 0, (int)spillover16_knot_b.size());
+      match += t_match;
+      //tot += tot;
 
-           ( ((b->Overflow[jj+2] == OVF16_MAX) && (spillover_knot_a[ii+2]==-1)) ||
-             (((int)b->Overflow[jj+2]) == spillover_knot_a[ii+2]) ) ) {
-
-        if ((anchor_tile_a==1) && (anchor_tile_b==1)) {
-          match++;
-
-          //DEBUG
-          if (loc_debug) {
-            printf("  spillover ++\n");
-            fflush(stdout);
-          }
-        }
-
+      if (loc_debug) {
+        printf("a->Overflow to spillover16_knot_b match %i\n", t_match);
       }
 
-      if (b->Overflow[jj+1] == OVF16_MAX) { anchor_tile_b = 0; }
-      if (b->Overflow[jj+2] == OVF16_MAX) { anchor_tile_b = 0; }
 
-      if (spillover_knot_a[ii+1] == -1) { anchor_tile_a = 0; }
-      if (spillover_knot_a[ii+2] == -1) { anchor_tile_a = 0; }
+      if (loc_debug) {
+        printf("\nB OVERFLOW[%i-%i] ** SPILLOVER A[%i-%i]\n",
+            (int)jjstart, (int)end_noninc_b,
+            0, (int)spillover16_knot_a.size()
+            );
+      }
 
-      //prev_tile_step_a = a->Overflow[ii];
-      prev_tile_step_a = spillover_knot_a[ii];
-      prev_tile_step16_b = b->Overflow[jj];
+      t_match=0; t_tot = 0;
+      overflow_concordance16(&t_match, &t_tot,
+                             spillover16_knot_a, 0, (int)spillover16_knot_a.size(),
+                             b->Overflow, jjstart, end_noninc_b);
+      match += t_match;
+      //tot += tot;
 
-      ii+=3;
-      jj+=3;
-      continue;
+      if (loc_debug) {
+        printf("spillover16_knot_a to b->Overflow match %i\n", t_match);
+      }
+
+
+      // Reset relevant tile path and tile step information
+      //
+      start_block_tile=-32;
+      tilepath_idx++;
+      spillover16_knot_a.clear();
+      spillover16_knot_b.clear();
+
+    } // tilepath crossed boundary calculations
+
+  } // for ii=n_q ...
+
+	//           __            __
+	//  _____ __/ _|  _____ __/ _|
+	// / _ \ V /  _| / _ \ V /  _|
+	// \___/\_/|_|   \___/\_/|_|
+	//
+
+  for (tilepath_idx = start_tile_path;
+       tilepath_idx <= end_tile_path_inc;
+       tilepath_idx++) {
+
+    iistart=jjstart=0;
+    if (tilepath_idx>0) {
+      iistart=a->OverflowOffset[tilepath_idx-1];
+      jjstart=b->OverflowOffset[tilepath_idx-1];
     }
 
-    // should not get here...
-    //
-    break;
-  }
+    end_noninc_a = a->OverflowOffset[tilepath_idx];
+    end_noninc_b = b->OverflowOffset[tilepath_idx];
 
-  }
-
-  //---
-
-
-  /*
-  ii=0;
-  if (start_tile_path>0) {
-    ii=b->OverflowOffset[start_tile_path-1];
-  }
-  iistart=ii;
-  
-  end_noninc_b = a->OverflowOffset[end_tile_path];
-  prev_tile_step16_b = 0;
-  anchor_tile_b = 1;
-
-  while (jj<end_noninc_b) {
-
-    if ((b->Overflow[ii] - prev_tile_step16_b) > 1) {
-      anchor_tile_b = 1;
-    }
-
-  }
-  */
-
-
-  // Count overflow matches
-  //
-  ii=jj=0;
-  if (start_tile_path>0) {
-    ii=a->OverflowOffset[start_tile_path-1];
-    jj=b->OverflowOffset[start_tile_path-1];
-  }
-  iistart=ii;
-  jjstart=jj;
-  
-  end_noninc_a = a->OverflowOffset[end_tile_path_inc];
-  end_noninc_b = b->OverflowOffset[end_tile_path_inc];
-
-  //DEBUG
-  if (loc_debug) {
-    printf("Overflow Print (a)\n");
-    printf("\n\n---\n\n");
-    for (idx=ii; idx<end_noninc_a; idx+=3) {
-      printf("  a->Overflow[%i]: %i %i %i\n",
-          idx,
-          (int)a->Overflow[idx],
-          (int)a->Overflow[idx+1],
-          (int)a->Overflow[idx+2]);
-    }
-
-    printf("Overflow Print (b)\n");
-    printf("\n\n---\n\n");
-    for (idx=jj; idx<end_noninc_b; idx+=3) {
-      printf("  b->Overflow[%i]: %i %i %i\n",
-          idx,
-          (int)b->Overflow[idx],
-          (int)b->Overflow[idx+1],
-          (int)b->Overflow[idx+2]);
-    }
-
-    printf("  [%llu,%llu : %llu,%llu]\n",
-        (unsigned long long)ii,
-        (unsigned long long)jj,
-        (unsigned long long)end_noninc_a,
-        (unsigned long long)end_noninc_b);
-  }
-
-  anchor_tile_a = 1;
-  anchor_tile_b = 1;
-
-  prev_tile_step16_a = 0;
-  prev_tile_step16_b = 0;
-
-  //DEBUG
-  int do_overflow_overflow = 1;
-  if (do_overflow_overflow) {
-
-  int experiment = 0;
-
-  // EXPERIMENTAL --------------
-  // EXPERIMENTAL --------------
-  if (experiment==0) {
-
-    if (loc_debug) {
-      printf("\n\nOVERFLOW OVERFLOW CONCORDANCE\n----\n\n");
-    }
+    if (loc_debug) { printf("\n\nOVERFLOW OVERFLOW CONCORDANCE\n----\n\n"); }
 
     t_match=0; t_tot=0;
     overflow_concordance16( &t_match, &t_tot,
                             a->Overflow, iistart, end_noninc_a,
                             b->Overflow, jjstart, end_noninc_b);
     match += t_match;
-    //tot += t_tot;
-  }
-
-      /*
-  int anchor_step_a = (int)a->Overflow[ii];
-  int anchor_step_b = (int)b->Overflow[jj];
-
-  anchor_step_a = (int)a->Overflow[ii];
-  knot_a.clear();
-  do {
-    prev_tile_step16_a = a->Overflow[ii];
-    knot_a.push_back((int)a->Overflow[ii+1]);
-    knot_a.push_back((int)a->Overflow[ii+2]);
-    ii+=3;
-  } while ((ii<end_noninc_a) &&
-           ((a->Overflow[ii] - prev_tile_step16_a) <= 1) &&
-           ((a->Overflow[ii+1] == OVF16_MAX) || (a->Overflow[ii+2] == OVF16_MAX)) );
-
-  anchor_step_b = (int)b->Overflow[jj];
-  knot_b.clear();
-  do {
-    prev_tile_step16_b = b->Overflow[jj];
-    knot_b.push_back((int)b->Overflow[jj+1]);
-    knot_b.push_back((int)b->Overflow[jj+2]);
-
-
-    printf("  knot_b++ %i %i %i\n",
-        (int)prev_tile_step16_b,
-        (int)b->Overflow[jj+1],
-        (int)b->Overflow[jj+2]);
-
-    jj+=3;
-  } while ((jj<end_noninc_b) &&
-           ((b->Overflow[jj] - prev_tile_step16_b) <= 1) &&
-           ((b->Overflow[jj+1] == OVF16_MAX) || (b->Overflow[jj+2] == OVF16_MAX)) );
-
-  //DEBUG
-  printf("experiment 0\n");
-
-  while ((ii<end_noninc_a) && (jj<end_noninc_b)) {
-
-    //DEBUG
-    printf("ii %i (/%i), jj %i (/%i)\n",
-        (int)ii, (int)end_noninc_a,
-        (int)jj, (int)end_noninc_b);
-    printf("  anchor a:%i (s%i), b:%i (s%i)\n",
-        anchor_step_a, (int)knot_a.size(),
-        anchor_step_b, (int)knot_b.size());
-
-    printf("  knot_a (step %i):", anchor_step_a);
-    for (idx=0; idx<knot_a.size(); idx++) { printf(" %i", knot_a[idx]); }
-    printf("\n");
-    printf("  knot_b (step %i):", anchor_step_b);
-    for (idx=0; idx<knot_b.size(); idx++) { printf(" %i", knot_b[idx]); }
-    printf("\n");
-    fflush(stdout);
-
-    if (anchor_step_a == anchor_step_b) {
-
-      //DEBUG
-      printf("  ==\n");
-
-      if ( (knot_a.size()>0) &&
-           (knot_a.size() == knot_b.size()) ) {
-        for (idx = 0; idx<knot_a.size(); idx++) {
-          if (knot_a[idx] != knot_b[idx]) { break; }
-        }
-      }
-      if (idx == knot_a.size()) {
-
-        //DEBUG
-        printf("  match!\n"); fflush(stdout);
-
-        match++;
-      }
-
-      knot_a.clear();
-      knot_b.clear();
-
-      if (ii >= end_noninc_a) { continue; }
-      if (jj >= end_noninc_b) { continue; }
-
-      anchor_step_a = (int)a->Overflow[ii];
-      knot_a.clear();
-      do {
-        prev_tile_step16_a = a->Overflow[ii];
-        knot_a.push_back((int)a->Overflow[ii+1]);
-        knot_a.push_back((int)a->Overflow[ii+2]);
-
-        //DEBUG
-        printf("  knot_a++ %i %i %i\n",
-            (int)a->Overflow[ii],
-            (int)a->Overflow[ii+1],
-            (int)a->Overflow[ii+2]);
-
-        ii+=3;
-      } while ((ii<end_noninc_a) &&
-               ((a->Overflow[ii] - prev_tile_step16_a) <= 1) &&
-               ((a->Overflow[ii+1] == OVF16_MAX) || (a->Overflow[ii+2] == OVF16_MAX)) );
-
-      anchor_step_b = (int)b->Overflow[jj];
-      knot_b.clear();
-      do {
-        prev_tile_step16_b = b->Overflow[jj];
-        knot_b.push_back((int)b->Overflow[jj+1]);
-        knot_b.push_back((int)b->Overflow[jj+2]);
-
-        //DEBUG
-        printf("  knot_b++ %i %i %i\n",
-            (int)b->Overflow[jj],
-            (int)b->Overflow[jj+1],
-            (int)b->Overflow[jj+2]);
-
-
-        jj+=3;
-      } while ((jj<end_noninc_b) &&
-               ((b->Overflow[jj] - prev_tile_step16_b) <= 1) &&
-               ((b->Overflow[jj+1] == OVF16_MAX) || (b->Overflow[jj+2] == OVF16_MAX)) );
-
-      continue;
-    }
-
-    if (anchor_step_a < anchor_step_b) {
-
-      //DEBUG
-      printf("  <\n"); 
-
-      knot_a.clear();
-
-      if (ii >= end_noninc_a) { continue; }
-
-      anchor_step_a = (int)a->Overflow[ii];
-      knot_a.clear();
-      do {
-        prev_tile_step16_a = a->Overflow[ii];
-        knot_a.push_back((int)a->Overflow[ii+1]);
-        knot_a.push_back((int)a->Overflow[ii+2]);
-
-        //DEBUG
-        printf("  knot_a++ %i %i %i\n",
-            (int)a->Overflow[ii],
-            (int)a->Overflow[ii+1],
-            (int)a->Overflow[ii+2]);
-
-        ii+=3;
-      } while ((ii<end_noninc_a) &&
-               ((a->Overflow[ii] - prev_tile_step16_a) <= 1) &&
-               ((a->Overflow[ii+1] == OVF16_MAX) || (a->Overflow[ii+2] == OVF16_MAX)) );
-
-      continue;
-    }
-
-    if (anchor_step_a > anchor_step_b) {
-
-      //DEBUG
-      printf("  >\n"); 
-
-      knot_b.clear();
-
-      if (jj >= end_noninc_b) { continue; }
-
-      anchor_step_b = (int)b->Overflow[jj];
-      knot_b.clear();
-      do {
-        prev_tile_step16_b = b->Overflow[jj];
-        knot_b.push_back((int)b->Overflow[jj+1]);
-        knot_b.push_back((int)b->Overflow[jj+2]);
-
-        //DEBUG
-        printf("  knot_b++ %i %i %i\n",
-            (int)b->Overflow[jj],
-            (int)b->Overflow[jj+1],
-            (int)b->Overflow[jj+2]);
-
-
-        jj+=3;
-      } while ((jj<end_noninc_b) &&
-               ((b->Overflow[jj] - prev_tile_step16_b) <= 1) &&
-               ((b->Overflow[jj+1] == OVF16_MAX) || (b->Overflow[jj+2] == OVF16_MAX)) );
-
-      continue;
-    }
-
-    if (anchor_step_a == anchor_step_b) {
-      if ( (knot_a.size()>0) && 
-           (knot_a.size() == knot_b.size()) ) {
-        for (idx = 0; idx<knot_a.size(); idx++) {
-          if (knot_a[idx] != knot_b[idx]) { break; }
-        }
-      }
-      if (z == knot_a.size()) { match++; }
-    }
 
   }
-
-  }
-
-  */
-
-  // EXPERIMENTAL --------------
-  // EXPERIMENTAL --------------
-
-
-  if (experiment==1) {
-
-  while ((ii<end_noninc_a) && (jj<end_noninc_b)) {
-
-    if ((a->Overflow[ii] - prev_tile_step16_a) > 1) {
-      anchor_tile_a = 1;
-    }
-
-    if ((b->Overflow[jj] - prev_tile_step16_b) > 1) {
-      anchor_tile_b = 1;
-    }
-
-    //DEBUG
-    //
-    if (loc_debug) {
-      printf("## a.Overflow[%i] %i %i,%i %c, b.Overflow[%i] %i %i,%i %c\n",
-          (int)(ii - iistart),
-          a->Overflow[ii],
-          (a->Overflow[ii+1] == OVF16_MAX) ? -1 : a->Overflow[ii+1],
-          (a->Overflow[ii+2] == OVF16_MAX) ? -1 : a->Overflow[ii+2],
-          anchor_tile_a ? 'a' : '-',
-          (int)(jj - jjstart),
-          b->Overflow[jj],
-          (b->Overflow[jj+1] == OVF16_MAX) ? -1 : b->Overflow[jj+1],
-          (b->Overflow[jj+2] == OVF16_MAX) ? -1 : b->Overflow[jj+2],
-          anchor_tile_b ? 'a' : '-');
-    }
-
-    if (a->Overflow[ii] < b->Overflow[jj]) {
-
-      if ((a->Overflow[ii+1] == OVF16_MAX) ||
-          (a->Overflow[ii+2] == OVF16_MAX)) {
-        anchor_tile_a = 0;
-      }
-      prev_tile_step16_a = a->Overflow[ii];
-
-      knot_a.clear();
-
-      ii+=3;
-      continue;
-    }
-
-    if (a->Overflow[ii] > b->Overflow[jj]) {
-
-      if ((b->Overflow[jj+1] == OVF16_MAX) ||
-          (b->Overflow[jj+2] == OVF16_MAX)) {
-        anchor_tile_b = 0;
-      }
-      prev_tile_step16_b = b->Overflow[jj];
-
-      knot_b.clear();
-
-      jj+=3;
-      continue;
-    }
-
-    if (a->Overflow[ii] == b->Overflow[jj]) {
-
-      if (a->Overflow[ii+1] == OVF16_MAX) { anchor_tile_a = 0; }
-      if (a->Overflow[ii+2] == OVF16_MAX) { anchor_tile_a = 0; }
-      if (b->Overflow[jj+1] == OVF16_MAX) { anchor_tile_b = 0; }
-      if (b->Overflow[jj+2] == OVF16_MAX) { anchor_tile_b = 0; }
-
-      if ((anchor_tile_a==1) && (anchor_tile_b==1)) {
-
-        if ((a->Overflow[ii+1] == b->Overflow[jj+1]) &&
-            (a->Overflow[ii+2] == b->Overflow[jj+2])) {
-
-          match++;
-
-          //DEBUG
-          if (loc_debug) { printf("  ++\n"); }
-        }
-
-      }
-
-      prev_tile_step16_a = a->Overflow[ii];
-      prev_tile_step16_b = b->Overflow[jj];
-
-      ii+=3;
-      jj+=3;
-      continue;
-    }
-
-    // should not get here...
-    //
-    break;
-  }
-
-  if ((knot_a.size()>0) && (knot_a.size() == knot_b.size())) {
-    for (idx=0; idx<knot_a.size(); idx++) {
-      if (knot_a[idx] != knot_b[idx]) { break; }
-    }
-    if (idx == knot_a.size()) { match++; }
-  }
-
-  // experiment==1
-  }
-
-  //DEBUG do_overflow_overflow
-  }
-
-
 
   //DEBUG
   //
