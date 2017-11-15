@@ -1047,6 +1047,11 @@ void ez_create(tilepath_ez_t &ez, tilepath_vec_t &tilepath, std::map< std::strin
         //
         if (cf==0) {
           for (j=0; j<k; j++) {
+
+            if (loc_debug) {
+              printf("# cf==0, ovf_vec (a): adding tilestep %i (%i %i)\n", tilestep+j, tilepath.allele[0][tilestep+j], tilepath.allele[1][tilestep+j]);
+            }
+
             ez.ovf_vec.push_back((int16_t)(tilestep+j));
             ez.ovf_vec.push_back((int16_t)tilepath.allele[0][tilestep+j]);
             ez.ovf_vec.push_back((int16_t)tilepath.allele[1][tilestep+j]);
@@ -1112,6 +1117,12 @@ void ez_create(tilepath_ez_t &ez, tilepath_vec_t &tilepath, std::map< std::strin
             // we have in the hexit cache area
             //
             if (hexit_vec.size()>8) {
+
+              if (loc_debug) {
+                printf("# ovf_vec (b): adding tilestep %i (%i %i)\n", tilestep, tilepath.allele[0][tilestep], tilepath.allele[1][tilestep]);
+              }
+
+
               ez.ovf_vec.push_back((int16_t)tilestep);
               ez.ovf_vec.push_back((int16_t)tilepath.allele[0][tilestep]);
               ez.ovf_vec.push_back((int16_t)tilepath.allele[1][tilestep]);
@@ -1119,6 +1130,10 @@ void ez_create(tilepath_ez_t &ez, tilepath_vec_t &tilepath, std::map< std::strin
 
           } else {
             hexit_vec.push_back(-1);
+
+            if (loc_debug) {
+              printf("# ovf_vec (c): adding tilestep %i (%i %i)\n", tilestep, tilepath.allele[0][tilestep], tilepath.allele[1][tilestep]);
+            }
 
             ez.ovf_vec.push_back((int16_t)tilestep);
             ez.ovf_vec.push_back((int16_t)tilepath.allele[0][tilestep]);
@@ -1135,6 +1150,10 @@ void ez_create(tilepath_ez_t &ez, tilepath_vec_t &tilepath, std::map< std::strin
           }
         } else {
           hexit_vec.push_back(-2);
+
+          if (loc_debug) {
+            printf("# ovf_vec (d): adding tilestep %i (%i %i)\n", tilestep, tilepath.allele[0][tilestep], tilepath.allele[1][tilestep]);
+          }
 
           ez.ovf_vec.push_back((int16_t)tilestep);
           ez.ovf_vec.push_back((int16_t)tilepath.allele[0][tilestep]);
@@ -1357,6 +1376,11 @@ void ez_create(tilepath_ez_t &ez, tilepath_vec_t &tilepath, std::map< std::strin
         //
         if (cf==0) {
           for (j=0; j<k; j++) {
+
+            if (loc_debug) {
+              printf("# ovf_vec (e): adding tilestep %i (%i %i)\n", tilestep+j, tilepath.allele[0][tilestep+j], tilepath.allele[1][tilestep+j]);
+            }
+
             ez.ovf_vec.push_back((int16_t)tilestep+j);
             ez.ovf_vec.push_back((int16_t)tilepath.allele[0][tilestep+j]);
             ez.ovf_vec.push_back((int16_t)tilepath.allele[1][tilestep+j]);
@@ -1429,6 +1453,11 @@ void ez_create(tilepath_ez_t &ez, tilepath_vec_t &tilepath, std::map< std::strin
                     tilepath.allele[1][tilestep] );
               }
 
+              if (loc_debug) {
+                printf("# ovf_vec (f): adding tilestep %i (%i %i)\n", tilestep, tilepath.allele[0][tilestep], tilepath.allele[1][tilestep]);
+              }
+
+
               ez.ovf_vec.push_back((int16_t)tilestep);
               ez.ovf_vec.push_back((int16_t)tilepath.allele[0][tilestep]);
               ez.ovf_vec.push_back((int16_t)tilepath.allele[1][tilestep]);
@@ -1444,6 +1473,9 @@ void ez_create(tilepath_ez_t &ez, tilepath_vec_t &tilepath, std::map< std::strin
                   tilepath.allele[1][tilestep] );
             }
 
+            if (loc_debug) {
+              printf("# ovf_vec (g): adding tilestep %i (%i %i)\n", tilestep, tilepath.allele[0][tilestep], tilepath.allele[1][tilestep]);
+            }
 
             ez.ovf_vec.push_back((int16_t)tilestep);
             ez.ovf_vec.push_back((int16_t)tilepath.allele[0][tilestep]);
@@ -1460,7 +1492,9 @@ void ez_create(tilepath_ez_t &ez, tilepath_vec_t &tilepath, std::map< std::strin
                 tilepath.allele[1][tilestep] );
           }
 
-
+          if (loc_debug) {
+            printf("# ovf_vec (h): adding tilestep %i (%i %i)\n", tilestep, tilepath.allele[0][tilestep], tilepath.allele[1][tilestep]);
+          }
 
           ez.ovf_vec.push_back((int16_t)tilestep);
           ez.ovf_vec.push_back((int16_t)tilepath.allele[0][tilestep]);

@@ -1,10 +1,14 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <errno.h>
+#include <unistd.h>
+#include <getopt.h>
 
 #include <vector>
 #include <string>
 #include <map>
+
+#define VERSION_STR "0.1.0"
 
 int VERBOSE_MATCH;
 
@@ -41,10 +45,12 @@ int tileband_concordance(tileband_t &a, tileband_t &b, int s, int n, int hiq_fla
   while ( (idx_a < (s+n)) &&
           (idx_b < (s+n)) ) {
 
+    if (VERBOSE_MATCH) {
     printf("idx_a %i+%i (%i), idx_b %i+%i (%i) (%i / %i)\n",
         idx_a, knot_a_len, knot_a_loq,
         idx_b, knot_b_len, knot_b_loq,
        match, tot );
+    }
 
     if (idx_a == idx_b) {
 
@@ -254,6 +260,31 @@ int tileband_read(tileband_t &t, FILE *fp) {
   return 0;
 }
 
+static struct option long_options[] = {
+  {"step",          required_argument,        NULL, 's'},
+  {"endstep",       required_argument,        NULL, 'S'},
+  {"help",                no_argument,        NULL, 'h'},
+  {"version",             no_argument,        NULL, 'v'},
+  {"verbose",             no_argument,        NULL, 'V'},
+  {0,0,0,0}
+};
+
+void show_version() {
+  printf("%s", VERSION_STR);
+}
+
+void show_help() {
+  show_version();
+  printf("usage:\n");
+  printf("    band-concordance [-h] [-v] [-V] [-s s] [-S S] bandA bandB\n");
+  printf("  [-s s]  tile step start\n");
+  printf("  [-S S]  tile step end (inclusive)\n");
+  printf("  [-n n]  tile step count\n");
+  printf("  [-h]    show help (this screen)\n");
+  printf("  [-v]    verbose\n");
+  printf("  [-V]    version\n");
+}
+
 int main(int argc, char **argv) {
   int i, j, k;
   FILE *fp;
@@ -261,35 +292,70 @@ int main(int argc, char **argv) {
   std::string ifn_a, ifn_b;
   int match=0, tot=0;
 
-  VERBOSE_MATCH=1;
+  int opt, option_index;
+  int verbose_flag = 0;
 
+  int start_tilestep=0, end_tilestep_inc = -1;
+  int n_tilestep = -1;
+  int hiq_flag = 1;
+
+  VERBOSE_MATCH=0;
+
+  while ((opt = getopt_long(argc, argv, "hvVs:S:n:", long_options, &option_index))!=-1) switch (opt) {
+    case 0:
+      fprintf(stderr, "invalid argument");
+      exit(-1);
+      break;
+    case 's': start_tilestep = atoi(optarg); break;
+    case 'S': end_tilestep_inc = atoi(optarg); break;
+    case 'n': n_tilestep = atoi(optarg); break;
+    case 'v': verbose_flag = 1; break;
+    case 'V': show_version(); exit(0); break;
+    default:
+    case 'h': show_help(); exit(0); break;
+  }
+
+
+  if ((argc-optind)>=2) {
+    ifn_a = argv[optind];
+    ifn_b = argv[optind+1];
+  }
+
+  if (end_tilestep_inc >= 0) {
+    n_tilestep = end_tilestep_inc - start_tilestep + 1;
+  }
+
+  /*
   if (argc!=3) {
     printf("provide two band files\n");
     exit(0);
   }
+  */
 
-  if (!(fp = fopen(argv[1], "r"))) {
-    perror(argv[1]);
+  if (!(fp = fopen(ifn_a.c_str(), "r"))) {
+    perror(ifn_a.c_str());
     exit(-1);
   }
   tileband_read(tileband_a, fp);
   fclose(fp);
 
-  if (!(fp = fopen(argv[2], "r"))) {
-    perror(argv[2]);
+  if (!(fp = fopen(ifn_b.c_str(), "r"))) {
+    perror(ifn_b.c_str());
     exit(-1);
   }
   tileband_read(tileband_b, fp);
   fclose(fp);
 
 
-  tileband_print(tileband_a);
-  printf("\n---\n\n");
-  tileband_print(tileband_b);
-
+  if (VERBOSE_MATCH) {
+    tileband_print(tileband_a);
+    printf("\n---\n\n");
+    tileband_print(tileband_b);
+  }
 
   tileband_concordance(tileband_a, tileband_b,
-      0, 0, 1,
+      start_tilestep, n_tilestep,
+      hiq_flag,
       &match, &tot);
 
   printf("match: %i, total: %i\n", match, tot);

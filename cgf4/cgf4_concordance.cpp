@@ -98,7 +98,7 @@ int overflow_concordance16(int *r_match, int *r_tot,
   uint16_t prev_tile_step16_a, prev_tile_step16_b;
   int match=0, tot=0;
 
-  int loc_debug = 1;
+  int loc_debug = 0;
 
   if ( ((end_noninc_b-start_b)==0) ||
        ((end_noninc_a-start_a)==0)) {
@@ -180,7 +180,8 @@ int overflow_concordance16(int *r_match, int *r_tot,
           //printf("MATCH %i+%i\n", anchor_step_a, (int)knot_a.size()/2);
           if (loc_debug) {
             printf("MATCH %i+%i\n", anchor_step_a, (int)knot_a.size()/2);
-            printf("  match!\n"); fflush(stdout);
+            printf("  match! ovf16 (a) %i+%i (knot_a.size %i)\n", anchor_step_a, (int)knot_a.size()/2, (int)knot_a.size());
+            fflush(stdout);
           }
 
           match++;
@@ -310,7 +311,10 @@ int overflow_concordance16(int *r_match, int *r_tot,
         }
         if (idx == knot_a.size()) {
 
-          if (loc_debug) { printf("MATCH %i+%i\n", anchor_step_a, (int)knot_a.size()/2); }
+          if (loc_debug) {
+            printf("MATCH %i+%i\n", anchor_step_a, (int)knot_a.size()/2);
+            printf("  match! ovf16 (b) %i+%i (knot_a.size %i)\n", anchor_step_a, (int)knot_a.size()/2, (int)knot_a.size());
+          }
 
           match++;
         }
@@ -322,6 +326,9 @@ int overflow_concordance16(int *r_match, int *r_tot,
   // end conditions
   //
 
+  // Skip ahead to the appropriate place in the 'a'
+  // structure, recording the last knot to be considered
+  //
   while ((ii<end_noninc_a) &&
          (anchor_step_a < anchor_step_b)) {
 
@@ -353,6 +360,9 @@ int overflow_concordance16(int *r_match, int *r_tot,
              ((a_overflow[ii+1] == OVF16_MAX) || (a_overflow[ii+2] == OVF16_MAX)) );
   }
 
+  // Skip ahead to the appropriate place in the 'b'
+  // structure, recording the last knot to be considered
+  //
   while ((jj<end_noninc_b) &&
          (anchor_step_a > anchor_step_b)) {
 
@@ -394,16 +404,18 @@ int overflow_concordance16(int *r_match, int *r_tot,
       for (idx = 0; idx<knot_a.size(); idx++) {
         if (knot_a[idx] != knot_b[idx]) { break; }
       }
-    }
-    if (idx == knot_a.size()) {
 
-      //DEBUG
-      if (loc_debug) {
-        printf("MATCH %i+%i\n", anchor_step_a, (int)knot_a.size()/2);
-        printf("  match!\n"); fflush(stdout);
+      if (idx == knot_a.size()) {
+
+        //DEBUG
+        if (loc_debug) {
+          printf("MATCH %i+%i\n", anchor_step_a, (int)knot_a.size()/2);
+          printf("  match! ovf16 (c) %i+%i (knot_a.size %i)\n", anchor_step_a, (int)knot_a.size()/2, (int)knot_a.size());
+          fflush(stdout);
+        }
+
+        match++;
       }
-
-      match++;
     }
   }
 
@@ -430,7 +442,7 @@ int cgf_hiq_concordance(int *r_match, int *r_tot,
                         cgf_t *a, cgf_t *b,
                         int start_tile_path, int start_tile_step,
                         int end_tile_path_inc, int end_tile_step_inc) {
-  int loc_debug = 1;
+  int loc_debug = 0;
 
   int i, j, k, p;
   uint64_t ii, jj, end_noninc_a, end_noninc_b;
@@ -560,6 +572,8 @@ int cgf_hiq_concordance(int *r_match, int *r_tot,
     env_mask_b = 0xffffffff;
 
     if (ii==n_q) {
+      //env_mask_a &= (0xffffffff << (start_tile_step%32));
+      //env_mask_b &= (0xffffffff << (start_tile_step%32));
       env_mask_a &= (0xffffffff << (start_tile_step%32));
       env_mask_b &= (0xffffffff << (start_tile_step%32));
     }
@@ -752,7 +766,7 @@ int cgf_hiq_concordance(int *r_match, int *r_tot,
           //DEBUG
           //
           if (loc_debug) {
-            printf("MATCH %i+%i\n", start_block_tile+hexit_relative_step_a[i], 0);
+            printf("MATCH %i+%i\n", start_block_tile+hexit_relative_step_a[i], 1);
             printf("  a[%i] %i == b[%i] %i ++\n",
                 hexit_relative_step_a[i], hexit_a[i],
                 hexit_relative_step_b[j], hexit_b[j]);

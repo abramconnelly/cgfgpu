@@ -257,6 +257,7 @@ uint64_t cgf_write_to_file(cgf_t *cgf, const char *ofn);
 void cgf_print(cgf_t *cgf);
 
 void cgf_output_band_format(cgf_t *cgf, int tilepath_idx, FILE *fp, int hiq);
+void cgf_output_band_format2(cgf_t *cgf, int tilepath_idx, FILE *fp, int step_start, int step_n, uint32_t fill_level);
 
 uint64_t cgf_write_to_file(cgf_t *cgf, const char *ofn);
 
