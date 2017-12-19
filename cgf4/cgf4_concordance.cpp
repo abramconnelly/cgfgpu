@@ -43,14 +43,14 @@
 //
 // For example, consider the following example:
 //
-//                        |           |       |       |       
-// Datasat0:    [ [ 0, -1, 13, -1, -1, 17, -1, 23, -1,  1 ], 
+//                        |           |       |       |
+// Datasat0:    [ [ 0, -1, 13, -1, -1, 17, -1, 23, -1,  1 ],
 //                [ 1,  1,  2,  2,  1,  1,  1,  1,  1, 29 ] ]
 //
 // knots:          0+2:1,1 13+3:2,2,1  17+2:1,1 23+2:1,1 1:29
 //
 //                        |        |  |           |   |
-// Datasat1:    [ [ 0, -1, 11, -1,  0, 19, -1, -1, 31,  1 ], 
+// Datasat1:    [ [ 0, -1, 11, -1,  0, 19, -1, -1, 31,  1 ],
 //                [ 1,  1,  2,  2,  1,  1,  1,  1,  1, 29 ] ]
 //
 // knots:          0+2:1,1 11+2:2,2 0:1 19+3:1,1,1 31:1 1:29
@@ -99,6 +99,21 @@ int overflow_concordance16(int *r_match, int *r_tot,
   int match=0, tot=0;
 
   int loc_debug = 0;
+
+  /*
+  //DEBUG
+  printf(" ending a %i %i %i\n",
+      (int)a_overflow[end_noninc_a-3],
+      (int)a_overflow[end_noninc_a-2],
+      (int)a_overflow[end_noninc_a-1]);
+
+  printf(" ending b %i %i %i\n",
+      (int)b_overflow[end_noninc_b-3],
+      (int)b_overflow[end_noninc_b-2],
+      (int)b_overflow[end_noninc_b-1]);
+      */
+  //---
+
 
   if ( ((end_noninc_b-start_b)==0) ||
        ((end_noninc_a-start_a)==0)) {
@@ -163,7 +178,7 @@ int overflow_concordance16(int *r_match, int *r_tot,
     }
 
     if (anchor_step_a == anchor_step_b) {
-      
+
       tot++;
 
       //DEBUG
@@ -179,7 +194,7 @@ int overflow_concordance16(int *r_match, int *r_tot,
           //DEBUG
           //printf("MATCH %i+%i\n", anchor_step_a, (int)knot_a.size()/2);
           if (loc_debug) {
-            printf("MATCH %i+%i\n", anchor_step_a, (int)knot_a.size()/2);
+            printf("MATCH %i+%i (match count %i)\n", anchor_step_a, (int)knot_a.size()/2, match);
             printf("  match! ovf16 (a) %i+%i (knot_a.size %i)\n", anchor_step_a, (int)knot_a.size()/2, (int)knot_a.size());
             fflush(stdout);
           }
@@ -304,7 +319,7 @@ int overflow_concordance16(int *r_match, int *r_tot,
     }
 
     if (anchor_step_a == anchor_step_b) {
-      if ( (knot_a.size()>0) && 
+      if ( (knot_a.size()>0) &&
            (knot_a.size() == knot_b.size()) ) {
         for (idx = 0; idx<knot_a.size(); idx++) {
           if (knot_a[idx] != knot_b[idx]) { break; }
@@ -472,8 +487,10 @@ int cgf_hiq_concordance(int *r_match, int *r_tot,
            canon_mask_a, canon_mask_b,
            anchor_mask_a, anchor_mask_b,
            non_anchor_span_mask_a, non_anchor_span_mask_b,
-           cache_ovf_mask_a, cache_ovf_mask_b,
-           env_mask_a, env_mask_b;
+           cache_ovf_mask_a, cache_ovf_mask_b;
+           //env_mask_a, env_mask_b;
+
+  uint32_t env_mask;
 
   uint32_t u32, t_u32;
   uint16_t prev_tile_step16_a, prev_tile_step16_b;
@@ -494,11 +511,12 @@ int cgf_hiq_concordance(int *r_match, int *r_tot,
   uint64_t jjstart;
 
   std::vector<int> knot_a, knot_b;
-  
+  int knot_len=0;
+
 
   tilemap_t tilemap;
 
-  // interleaved step, cache val 
+  // interleaved step, cache val
   //
   std::vector< int > spillover_a, spillover_b;
 
@@ -568,19 +586,27 @@ int cgf_hiq_concordance(int *r_match, int *r_tot,
     //if (ii >= a->StrideOffset[tilepath_idx]) { start_block_tile=0; }
 
 
-    env_mask_a = 0xffffffff;
-    env_mask_b = 0xffffffff;
+    //env_mask_a = 0xffffffff;
+    //env_mask_b = 0xffffffff;
+    env_mask = 0xffffffff;
+
+    // env_mask turns out to be more complicated then anticpated
+    // taking out for now to test.
+    // If testing goes well, we should take out the env_mask altogether
+    //
 
     if (ii==n_q) {
       //env_mask_a &= (0xffffffff << (start_tile_step%32));
       //env_mask_b &= (0xffffffff << (start_tile_step%32));
-      env_mask_a &= (0xffffffff << (start_tile_step%32));
-      env_mask_b &= (0xffffffff << (start_tile_step%32));
+      //env_mask_a &= (0xffffffff << (start_tile_step%32));
+      //env_mask_b &= (0xffffffff << (start_tile_step%32));
+      env_mask &= (0xffffffff << (start_tile_step%32));
     }
 
     if (ii==n_q_end) {
-      env_mask_a &= (0xffffffff >> (31-(end_tile_step_inc%32)));
-      env_mask_b &= (0xffffffff >> (31-(end_tile_step_inc%32)));
+      //env_mask_a &= (0xffffffff >> (31-(end_tile_step_inc%32)));
+      //env_mask_b &= (0xffffffff >> (31-(end_tile_step_inc%32)));
+      env_mask &= (0xffffffff >> (31-(end_tile_step_inc%32)));
     }
 
     //DEBUG
@@ -591,8 +617,11 @@ int cgf_hiq_concordance(int *r_match, int *r_tot,
       printf("ii %llu (%llu of [%llu,%llu])\n",
           (unsigned long long)ii, (unsigned long long)ii,
           (unsigned long long)n_q, (unsigned long long)n_q_end);
-      printf("env_mask_a %08x\n", (unsigned int)env_mask_a);
-      printf("env_mask_b %08x\n", (unsigned int)env_mask_b);
+      //printf("  env_mask_a %08x\n", (unsigned int)env_mask_a);
+      //printf("  env_mask_b %08x\n", (unsigned int)env_mask_b);
+      //printf("  env_mask_a: "); print_bin32(env_mask_a); printf("\n");
+      //printf("  env_mask_b: "); print_bin32(env_mask_b); printf("\n");
+      printf("  env_mask: "); print_bin32(env_mask); printf("\n");
     }
 
 
@@ -605,7 +634,7 @@ int cgf_hiq_concordance(int *r_match, int *r_tot,
 
     xspan_mask_a      = ~span_mask_a;
     hiq_mask_a        = ~loq_mask_a;
-    hiq_mask_a        &= env_mask_a;
+    //hiq_mask_a        &= env_mask_a;
 
     // non anchor spanning tiles are indicated with a span bit set and a canon bit set
     // so make sure to account for them to get the actual canononical bits out.
@@ -633,7 +662,7 @@ int cgf_hiq_concordance(int *r_match, int *r_tot,
 
     xspan_mask_b      = ~span_mask_b;
     hiq_mask_b        = ~loq_mask_b;
-    hiq_mask_b        &= env_mask_b;
+    //hiq_mask_b        &= env_mask_b;
 
     canon_mask_b      = cache_mask_b & xspan_mask_b & hiq_mask_b;
     anchor_mask_b     = span_mask_b & hiq_mask_b & (~cache_mask_b);
@@ -644,17 +673,19 @@ int cgf_hiq_concordance(int *r_match, int *r_tot,
     // The total number of high quality matches is the number of high quality
     // tiles both have in common, excluding the non-anchor high quality tiles
     //
-    tot += NumberOfSetBits32( hiq_mask_a & hiq_mask_b & (~non_anchor_span_mask_a) & (~non_anchor_span_mask_b) );
+    //tot += NumberOfSetBits32( hiq_mask_a & hiq_mask_b & (~non_anchor_span_mask_a) & (~non_anchor_span_mask_b) );
+    tot += NumberOfSetBits32( env_mask & hiq_mask_a & hiq_mask_b & (~non_anchor_span_mask_a) & (~non_anchor_span_mask_b) );
 
     // Count the number of canonical matches.
     //
-    match += NumberOfSetBits32( canon_mask_a & canon_mask_b );
+    //match += NumberOfSetBits32( canon_mask_a & canon_mask_b );
+    match += NumberOfSetBits32( env_mask & canon_mask_a & canon_mask_b );
 
     if (loc_debug) {
-      t_u32 = canon_mask_a & canon_mask_b;
+      t_u32 = env_mask & canon_mask_a & canon_mask_b;
       for (i=0; i<32; i++) {
         if (t_u32 & ((uint32_t)1<<i)) {
-          printf("MATCH %i+1\n", start_block_tile+i);
+          printf("MATCH %i+1 (match %i)\n", start_block_tile+i, match);
         }
       }
     }
@@ -761,15 +792,60 @@ int cgf_hiq_concordance(int *r_match, int *r_tot,
         if ((hexit_a[i] > 0) && (hexit_a[i] < 0xf) &&
             (hexit_b[j] > 0) && (hexit_b[j] < 0xf) &&
             (hexit_a[i]==hexit_b[j])) {
-          match++;
+
+          if ((ii > n_q) && (ii < n_q_end)) {
+            match++;
+          }
+
+          else if ( (ii == n_q) && (ii < n_q_end) &&
+                    ((start_block_tile + hexit_relative_step_a[i]) >= start_tile_step) &&
+                    ((start_block_tile + hexit_relative_step_b[j]) >= start_tile_step) ) {
+            match++;
+          }
+
+          else if ( (ii > n_q) && (ii == n_q_end) &&
+                    ((start_block_tile + hexit_relative_step_a[i]) <= end_tile_step_inc) &&
+                    ((start_block_tile + hexit_relative_step_b[j]) <= end_tile_step_inc) ) {
+            match++;
+          }
+
+          else if ( (ii == n_q) && (ii == n_q_end) &&
+                    ((start_block_tile + hexit_relative_step_a[i]) >= start_tile_step) &&
+                    ((start_block_tile + hexit_relative_step_b[j]) >= start_tile_step) &&
+                    ((start_block_tile + hexit_relative_step_a[i]) <= end_tile_step_inc) &&
+                    ((start_block_tile + hexit_relative_step_b[j]) <= end_tile_step_inc) ) {
+            match++;
+          }
+          // else we skip over and don't count the match
+          // as it falls outside of the selected window
 
           //DEBUG
           //
           if (loc_debug) {
-            printf("MATCH %i+%i\n", start_block_tile+hexit_relative_step_a[i], 1);
-            printf("  a[%i] %i == b[%i] %i ++\n",
-                hexit_relative_step_a[i], hexit_a[i],
-                hexit_relative_step_b[j], hexit_b[j]);
+            if ( ((ii > n_q) && (ii < n_q_end)) ||
+                 ( (ii == n_q) && (ii < n_q_end) &&
+                   ((start_block_tile + hexit_relative_step_a[i]) >= start_tile_step) &&
+                   ((start_block_tile + hexit_relative_step_b[j]) >= start_tile_step)) ||
+                 ( (ii > n_q) && (ii == n_q_end) &&
+                   ((start_block_tile + hexit_relative_step_a[i]) <= end_tile_step_inc) &&
+                   ((start_block_tile + hexit_relative_step_b[j]) <= end_tile_step_inc)) ||
+                 ( (ii == n_q) && (ii == n_q_end) &&
+                   ((start_block_tile + hexit_relative_step_a[i]) >= start_tile_step) &&
+                   ((start_block_tile + hexit_relative_step_b[j]) >= start_tile_step) &&
+                   ((start_block_tile + hexit_relative_step_a[i]) <= end_tile_step_inc) &&
+                   ((start_block_tile + hexit_relative_step_b[j]) <= end_tile_step_inc) ) ) {
+
+              printf("MATCH %i+%i (match count %i)\n", start_block_tile+hexit_relative_step_a[i], 1, match);
+              printf("  a[%i] %i == b[%i] %i ++\n",
+                  hexit_relative_step_a[i], hexit_a[i],
+                  hexit_relative_step_b[j], hexit_b[j]);
+            }
+            else {
+              printf("ignored-match %i+%i (match count %i) (falls outside window)\n", start_block_tile+hexit_relative_step_a[i], 1, match);
+              printf("  ignored: a[%i] %i == b[%i] %i ++\n",
+                  hexit_relative_step_a[i], hexit_a[i],
+                  hexit_relative_step_b[j], hexit_b[j]);
+            }
           }
 
         }
@@ -789,14 +865,33 @@ int cgf_hiq_concordance(int *r_match, int *r_tot,
         if (hexit_relative_step_b[j] < 0) { break; }
         if ((hexit_b[j] == 0) || (hexit_b[j] >= 0xf)) { continue; }
 
-        spillover_b.push_back(hexit_relative_step_b[j] + start_block_tile);
-        spillover_b.push_back(hexit_b[j]);
+        if ( ( (ii == n_q) &&
+               ((start_block_tile + hexit_relative_step_b[j]) < start_tile_step) )
+             ||
+             ( (ii == n_q_end) &&
+               ((start_block_tile + hexit_relative_step_b[j]) > end_tile_step_inc) )
+             ) {
+          //do nothing
 
-        if (loc_debug) {
-          printf("  adding spill b %i %i (j%i, rel:%i)\n", 
-              hexit_relative_step_b[j] + start_block_tile,
-              hexit_b[j], j, hexit_relative_step_b[j]);
+          if (loc_debug) {
+            printf("  skipping adding spill b %i %i (j%i, rel:%i) (outside of window)\n",
+                hexit_relative_step_b[j] + start_block_tile,
+                hexit_b[j], j, hexit_relative_step_b[j]);
+          }
+
         }
+        else {
+          spillover_b.push_back(hexit_relative_step_b[j] + start_block_tile);
+          spillover_b.push_back(hexit_b[j]);
+
+          if (loc_debug) {
+            printf("  adding spill b %i %i (j%i, rel:%i)\n",
+                hexit_relative_step_b[j] + start_block_tile,
+                hexit_b[j], j, hexit_relative_step_b[j]);
+          }
+
+        }
+
       }
     }
     else if (j==8) {
@@ -805,13 +900,32 @@ int cgf_hiq_concordance(int *r_match, int *r_tot,
         if (hexit_relative_step_a[i] < 0) { break; }
         if ((hexit_a[i] == 0) || (hexit_a[i] >= 0xf)) { continue; }
 
-        spillover_a.push_back(hexit_relative_step_a[i] + start_block_tile);
-        spillover_a.push_back(hexit_a[i]);
+        if ( ( (ii == n_q) &&
+               ((start_block_tile + hexit_relative_step_b[i]) < start_tile_step) )
+            ||
+             ( (ii == n_q_end) &&
+               ((start_block_tile + hexit_relative_step_b[i]) > end_tile_step_inc) )
+             ) {
 
-        if (loc_debug) {
-          printf("  adding spill a %i %i (i%i)\n", 
-              hexit_relative_step_a[i] + start_block_tile,
-              hexit_a[i], i);
+          //do nothing
+
+          if (loc_debug) {
+            printf("  skipping adding spill a %i %i (i%i) (outside of window)\n",
+                hexit_relative_step_a[i] + start_block_tile,
+                hexit_a[i], i);
+          }
+        }
+        else {
+
+          spillover_a.push_back(hexit_relative_step_a[i] + start_block_tile);
+          spillover_a.push_back(hexit_a[i]);
+
+          if (loc_debug) {
+            printf("  adding spill a %i %i (i%i)\n",
+                hexit_relative_step_a[i] + start_block_tile,
+                hexit_a[i], i);
+          }
+
         }
 
       }
@@ -822,13 +936,16 @@ int cgf_hiq_concordance(int *r_match, int *r_tot,
     if (loc_debug) { printf("  +match %i, +tot %i\n", match, tot); }
 
 
-    // EXPERIMENTAL
-  //}
-
 		//  __ _ _ ___ ______ _____ _____ _ _
 		// / _| '_/ _ (_-<_-</ _ \ V / -_) '_|
 		// \__|_| \___/__/__/\___/\_/\___|_|
 		//
+    // crossover match calculations.
+    //
+    // calculate the number matched from the elements in the
+    // cache to the elements in the overflow tables for
+    // dataset a to b and vice versa.
+    //
 
 		if (loc_debug) {
       printf("  ## ii %i, (ii+1) = %i, strideoffset[%i] %i\n",
@@ -839,7 +956,20 @@ int cgf_hiq_concordance(int *r_match, int *r_tot,
 
     // If we've crossed a tilepath boundary, check the spillover
     //
-    if ( (ii+1) >= a->StrideOffset[tilepath_idx]) {
+    //if ( (ii+1) >= a->StrideOffset[tilepath_idx]) {
+
+    // If we've crossed a tilepath boundary or we're at the end
+    // of our window, check the spillover to overflow matches.
+    //
+    if ( ((ii+1) >= a->StrideOffset[tilepath_idx]) ||
+         (ii == n_q_end) ) {
+
+      if (loc_debug) {
+        printf("CROSS ii %i (ii+1=%i) >= a->StrideOffset[tilepath_idx %i] %i\n",
+            (int)ii, (int)(ii+1),
+            (int)tilepath_idx,
+            (int)a->StrideOffset[tilepath_idx]);
+      }
 
       // DEBUG
       //
@@ -861,6 +991,31 @@ int cgf_hiq_concordance(int *r_match, int *r_tot,
       //
       spillover_knot_a.clear();
       for (i=0; i<spillover_a.size(); i+=2) {
+
+        // if the knot passes over the end of the last tilestep in our window, ignore it
+        //
+        if (ii == n_q_end) {
+          //knot_len = tilemap.offset[spillover_a[i+1]] - tilemap.offset[ spillover_a[i+1]-1 ];
+          //if ((spillover_a[i] + knot_len) > end_tile_step_inc) {
+
+          // We only check that the anchor step is in the window range, allowing for
+          // matches for knots that begin inside the window but end outside the window.
+          // Though technically 'wrong' this simplifies calculations since we don't need
+          // to worry about edge cases of knots spilling over into neighboring blocks.
+          //
+          if (spillover_a[i] > end_tile_step_inc) {
+
+            if (loc_debug) {
+              printf("  skipping ovf16_a %i %i\n", spillover_a[i], spillover_a[i+1]);
+            }
+
+            continue;
+          }
+        }
+
+        // tile offset holds the relative offste from the beginning of the tile step
+        // for the tile knot held in the tilemap
+        //
         tile_offset=0;
         for ( j=tilemap.offset[ spillover_a[i+1]-1 ]; j<tilemap.offset[spillover_a[i+1]]; j++) {
           spillover_knot_a.push_back(spillover_a[i] + tile_offset);
@@ -880,6 +1035,30 @@ int cgf_hiq_concordance(int *r_match, int *r_tot,
 
       spillover_knot_b.clear();
       for (i=0; i<spillover_b.size(); i+=2) {
+
+        // if the knot passes over the end of the last tilestep in our window, ignore it
+        //
+        if (ii == n_q_end) {
+          //knot_len = tilemap.offset[spillover_b[i+1]] - tilemap.offset[ spillover_b[i+1]-1 ];
+
+          // We only check that the anchor step is in the window range, allowing for
+          // matches for knots that begin inside the window but end outside the window.
+          // Though technically 'wrong' this simplifies calculations since we don't need
+          // to worry about edge cases of knots spilling over into neighboring blocks.
+          //
+          if (spillover_b[i] > end_tile_step_inc) {
+
+            if (loc_debug) {
+              printf("  skipping ovf16_b %i %i\n", spillover_b[i], spillover_b[i+1]);
+            }
+
+            continue;
+          }
+        }
+
+        // tile offset holds the relative offste from the beginning of the tile step
+        // for the tile knot held in the tilemap
+        //
         tile_offset=0;
         for ( j=tilemap.offset[ spillover_b[i+1]-1 ]; j<tilemap.offset[spillover_b[i+1]]; j++) {
           spillover_knot_b.push_back(spillover_b[i] + tile_offset);
@@ -1018,13 +1197,72 @@ int cgf_hiq_concordance(int *r_match, int *r_tot,
     end_noninc_a = a->OverflowOffset[tilepath_idx];
     end_noninc_b = b->OverflowOffset[tilepath_idx];
 
-    if (loc_debug) { printf("\n\nOVERFLOW OVERFLOW CONCORDANCE\n----\n\n"); }
+    // If we've started on the beginning tile path,
+    // run forward till we get to the first tile step
+    // under ocnsiderationg.
+    //
+    if (tilepath_idx == start_tile_path) {
+
+      while (iistart < end_noninc_a) {
+        if ((int)(a->Overflow[iistart]) >= start_tile_step) { break; }
+        iistart+=3;
+      }
+
+      while (jjstart < end_noninc_b) {
+        if ((int)(b->Overflow[jjstart]) >= start_tile_step) { break; }
+        jjstart+=3;
+      }
+
+    }
+
+    if (tilepath_idx == end_tile_path_inc) {
+
+      while (end_noninc_a > iistart) {
+        if ((int)((a->Overflow[end_noninc_a-3])) <= end_tile_step_inc) { break; }
+
+        if (loc_debug) {
+          printf("  a->Overflow[%i] %i\n",
+              (int)end_noninc_a,
+              (int)(a->Overflow[end_noninc_a-3]));
+        }
+
+        end_noninc_a -= 3;
+      }
+
+      if (loc_debug) {
+        printf("---\n");
+      }
+
+      while (end_noninc_b > jjstart) {
+        if ((int)((b->Overflow[end_noninc_b-3])) <= end_tile_step_inc) { break; }
+
+        if (loc_debug) {
+          printf("  b->Overflow[%i] %i\n",
+              (int)end_noninc_b,
+              (int)(b->Overflow[end_noninc_b-3]));
+        }
+
+        end_noninc_b -= 3;
+      }
+
+    }
+
+    if (loc_debug) {
+      printf("\n\nOVERFLOW OVERFLOW CONCORDANCE\n----\n\n");
+      printf("  iistart %i, end_noninc_a %i\n", (int)iistart, (int)end_noninc_a);
+      printf("  jjstart %i, end_noninc_b %i\n", (int)jjstart, (int)end_noninc_b);
+    }
 
     t_match=0; t_tot=0;
     overflow_concordance16( &t_match, &t_tot,
                             a->Overflow, iistart, end_noninc_a,
                             b->Overflow, jjstart, end_noninc_b);
     match += t_match;
+
+    if (loc_debug) {
+      printf("  ovf ovf conc t_match %i\n", t_match);
+    }
+
 
   }
 
@@ -1033,7 +1271,7 @@ int cgf_hiq_concordance(int *r_match, int *r_tot,
   if (loc_debug) { printf("  fin: match %i, tot %i\n", match, tot); }
 
   *r_match = match;
-  *r_tot =tot; 
+  *r_tot =tot;
 
   return 0;
 }

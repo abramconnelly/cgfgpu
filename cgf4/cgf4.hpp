@@ -116,6 +116,17 @@ typedef struct cgf4_type {
   // but the offset for the next tile path will occur in
   // position 1 for Loq, Span and Canon, and 4 for Cache Overflow.
   //
+  // Position offset in appropriate arrays.
+  //
+  // example, assuming stride is 32:
+  //
+  // StepCount: 5433 11585 7112 7550 13094 10061 ...
+  // StrideOffset: 170 533 756 992 1402 1717 ...
+  //
+  // 5433/32 = 169.78125 -> 170
+  // 11585/32 = 362.03125 -> 170 + 363 = 533
+  // etc.
+  //
   std::vector< uint64_t > StrideOffset;
 
   // Loq quality vector. 1 represents a 'low quality' tile whereas '0'

@@ -29,6 +29,8 @@ int tileband_concordance(tileband_t &a, tileband_t &b, int s, int n, int hiq_fla
   int knot_a_loq, knot_b_loq;
   int is_match=0;
 
+  int end_bound=0;
+
   if (s<=0) { s=0; }
   if (n<=0) { end_noninc = a.v[0].size(); }
   else { end_noninc = s+n; }
@@ -37,6 +39,19 @@ int tileband_concordance(tileband_t &a, tileband_t &b, int s, int n, int hiq_fla
 
   idx_a = s;
   idx_b = s;
+
+  // skip past initial knot
+  //
+  for (i=s; i<(s+n); i++) {
+    if ( (a.v[0][idx_a] >= 0) &&
+         (a.v[1][idx_a] >= 0) &&
+         (b.v[0][idx_b] >= 0) &&
+         (b.v[1][idx_b] >= 0) ) {
+      break;
+    }
+    idx_a++;
+    idx_b++;
+  }
 
 
   tileband_knot(a, idx_a, &knot_a_len, &knot_a_loq);
@@ -315,6 +330,9 @@ int main(int argc, char **argv) {
     case 'h': show_help(); exit(0); break;
   }
 
+  if (verbose_flag) {
+    VERBOSE_MATCH=1;
+  }
 
   if ((argc-optind)>=2) {
     ifn_a = argv[optind];

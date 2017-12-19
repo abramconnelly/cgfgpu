@@ -137,6 +137,7 @@ void show_help() {
   printf("  [-C|--create-container]     create empty container\n");
   printf("  [-I|--info]                 print basic information about CGF file\n");
   printf("  [-b|--band tilepath]        output band for tilepath\n");
+  printf("  [-F fill_level]             bit vector for band fillin (1 canon, 2 cache, 4 ovf, 8 noc, 0xff default)\n");
   printf("  [-m|--match]                run concordance on a pair of cgf files (must provide two cgf files)\n");
   printf("  [-e|--encode tilepath]      input tilepath band and add it to file, overwriting if it already exists\n");
 
@@ -144,6 +145,7 @@ void show_help() {
   printf("  [-P|--endtilepath tilepath] end tilepath\n");
   printf("  [-s|--tilestep tilestep]    tilestep (start)\n");
   printf("  [-S|--endtilestep tilestep] end tilestep\n");
+
 
   printf("  [-i|--input ifn]            input file (CGF)\n");
   printf("  [-o|--output ofn]           output file (CGF)\n");
@@ -562,9 +564,7 @@ printf("uh %i\n", cgf_opt.update_header);
       }
     }
 
-    printf("## [%i.%i,%i.%i]\n",
-        cgf_opt.tilepath, cgf_opt.tilestep,
-        cgf_opt.endtilepath, cgf_opt.endtilestep);
+    //printf("## [%i.%i,%i.%i]\n", cgf_opt.tilepath, cgf_opt.tilestep, cgf_opt.endtilepath, cgf_opt.endtilestep);
 
     //k = cgf_hiq_concordance(&match, &tot, cgf, cgf_b, 0x035e, 0, 0x35e, 34);
     k = cgf_hiq_concordance( &match, &tot,
