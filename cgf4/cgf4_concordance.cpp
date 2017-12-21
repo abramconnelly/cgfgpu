@@ -514,7 +514,8 @@ int cgf_hiq_concordance(int *r_match, int *r_tot,
   int knot_len=0;
 
 
-  tilemap_t tilemap;
+  //int init_tilemap=1;
+  tilemap_t *tilemap, tm;
 
   // interleaved step, cache val
   //
@@ -524,6 +525,11 @@ int cgf_hiq_concordance(int *r_match, int *r_tot,
   //
   std::vector< int > spillover_knot_a, spillover_knot_b;
   std::vector< uint16_t > spillover16_knot_a, spillover16_knot_b;
+
+  knot_a.clear();             knot_b.clear();
+  spillover_a.clear();        spillover_b.clear();
+  spillover_knot_a.clear();   spillover_knot_b.clear();
+  spillover16_knot_a.clear(); spillover16_knot_b.clear();
 
   loq_a = &(a->Loq[0]);
   loq_b = &(b->Loq[0]);
@@ -543,7 +549,16 @@ int cgf_hiq_concordance(int *r_match, int *r_tot,
   overflow64_a = &(a->Overflow64[0]);
   overflow64_b = &(b->Overflow64[0]);
 
-  str2tilemap(a->TileMap, tilemap);
+  if (a->TileMapCacheInit==0) {
+    str2tilemap(a->TileMap, &tm);
+    tilemap = &tm;
+  }
+  else {
+    tilemap = &(a->TileMapCache);
+  }
+
+
+
 
   stride = a->Stride;
   tilepath_idx = start_tile_path;
@@ -995,7 +1010,7 @@ int cgf_hiq_concordance(int *r_match, int *r_tot,
         // if the knot passes over the end of the last tilestep in our window, ignore it
         //
         if (ii == n_q_end) {
-          //knot_len = tilemap.offset[spillover_a[i+1]] - tilemap.offset[ spillover_a[i+1]-1 ];
+          //knot_len = tilemap->offset[spillover_a[i+1]] - tilemap->offset[ spillover_a[i+1]-1 ];
           //if ((spillover_a[i] + knot_len) > end_tile_step_inc) {
 
           // We only check that the anchor step is in the window range, allowing for
@@ -1017,16 +1032,16 @@ int cgf_hiq_concordance(int *r_match, int *r_tot,
         // for the tile knot held in the tilemap
         //
         tile_offset=0;
-        for ( j=tilemap.offset[ spillover_a[i+1]-1 ]; j<tilemap.offset[spillover_a[i+1]]; j++) {
+        for ( j=tilemap->offset[ spillover_a[i+1]-1 ]; j<tilemap->offset[spillover_a[i+1]]; j++) {
           spillover_knot_a.push_back(spillover_a[i] + tile_offset);
-          spillover_knot_a.push_back( tilemap.variant[0][j] );
-          spillover_knot_a.push_back( tilemap.variant[1][j] );
+          spillover_knot_a.push_back( tilemap->variant[0][j] );
+          spillover_knot_a.push_back( tilemap->variant[1][j] );
 
           spillover16_knot_a.push_back(spillover_a[i] + tile_offset);
-          u16 = ((tilemap.variant[0][j] < 0) ? OVF16_MAX : (uint16_t)tilemap.variant[0][j]);
-          spillover16_knot_a.push_back( tilemap.variant[0][j] );
-          u16 = ((tilemap.variant[1][j] < 0) ? OVF16_MAX : (uint16_t)tilemap.variant[1][j]);
-          spillover16_knot_a.push_back( tilemap.variant[1][j] );
+          u16 = ((tilemap->variant[0][j] < 0) ? OVF16_MAX : (uint16_t)tilemap->variant[0][j]);
+          spillover16_knot_a.push_back( tilemap->variant[0][j] );
+          u16 = ((tilemap->variant[1][j] < 0) ? OVF16_MAX : (uint16_t)tilemap->variant[1][j]);
+          spillover16_knot_a.push_back( tilemap->variant[1][j] );
 
           tile_offset++;
         }
@@ -1039,7 +1054,7 @@ int cgf_hiq_concordance(int *r_match, int *r_tot,
         // if the knot passes over the end of the last tilestep in our window, ignore it
         //
         if (ii == n_q_end) {
-          //knot_len = tilemap.offset[spillover_b[i+1]] - tilemap.offset[ spillover_b[i+1]-1 ];
+          //knot_len = tilemap->offset[spillover_b[i+1]] - tilemap->offset[ spillover_b[i+1]-1 ];
 
           // We only check that the anchor step is in the window range, allowing for
           // matches for knots that begin inside the window but end outside the window.
@@ -1060,15 +1075,15 @@ int cgf_hiq_concordance(int *r_match, int *r_tot,
         // for the tile knot held in the tilemap
         //
         tile_offset=0;
-        for ( j=tilemap.offset[ spillover_b[i+1]-1 ]; j<tilemap.offset[spillover_b[i+1]]; j++) {
+        for ( j=tilemap->offset[ spillover_b[i+1]-1 ]; j<tilemap->offset[spillover_b[i+1]]; j++) {
           spillover_knot_b.push_back(spillover_b[i] + tile_offset);
-          spillover_knot_b.push_back( tilemap.variant[0][j] );
-          spillover_knot_b.push_back( tilemap.variant[1][j] );
+          spillover_knot_b.push_back( tilemap->variant[0][j] );
+          spillover_knot_b.push_back( tilemap->variant[1][j] );
 
           spillover16_knot_b.push_back((uint16_t)(spillover_b[i] + tile_offset));
-          u16 = ((tilemap.variant[0][j] < 0) ? OVF16_MAX : (uint16_t)tilemap.variant[0][j]);
+          u16 = ((tilemap->variant[0][j] < 0) ? OVF16_MAX : (uint16_t)tilemap->variant[0][j]);
           spillover16_knot_b.push_back( u16 );
-          u16 = ((tilemap.variant[1][j] < 0) ? OVF16_MAX : (uint16_t)tilemap.variant[1][j]);
+          u16 = ((tilemap->variant[1][j] < 0) ? OVF16_MAX : (uint16_t)tilemap->variant[1][j]);
           spillover16_knot_b.push_back( u16 );
 
           tile_offset++;

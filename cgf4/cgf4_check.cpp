@@ -57,7 +57,7 @@ int cgf_sanity(cgf_t *cgf) {
   //std::vector< int > cache_ovf, spillover, spillover_knot;
   std::vector< int > spillover;
 
-  str2tilemap(cgf->TileMap, tilemap);
+  str2tilemap(cgf->TileMap, &tilemap);
 
   loq = &(cgf->Loq[0]);
   span = &(cgf->Span[0]);

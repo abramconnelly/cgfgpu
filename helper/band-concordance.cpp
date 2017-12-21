@@ -281,6 +281,7 @@ static struct option long_options[] = {
   {"help",                no_argument,        NULL, 'h'},
   {"version",             no_argument,        NULL, 'v'},
   {"verbose",             no_argument,        NULL, 'V'},
+  {"all-endpoints",       no_argument,        NULL, 'A'},
   {0,0,0,0}
 };
 
@@ -289,15 +290,21 @@ void show_version() {
 }
 
 void show_help() {
+  printf("\n");
+  printf("version: ");
   show_version();
-  printf("usage:\n");
-  printf("    band-concordance [-h] [-v] [-V] [-s s] [-S S] bandA bandB\n");
+  printf("\n\n");
+  printf("usage:\n\n");
+  printf("  band-concordance [-h] [-v] [-V] [-s s] [-S S] bandA bandB\n");
+  printf("\n");
   printf("  [-s s]  tile step start\n");
   printf("  [-S S]  tile step end (inclusive)\n");
   printf("  [-n n]  tile step count\n");
+  printf("  [-A]    do a concordance on all endpoints in path\n");
   printf("  [-h]    show help (this screen)\n");
   printf("  [-v]    verbose\n");
   printf("  [-V]    version\n");
+  printf("\n");
 }
 
 int main(int argc, char **argv) {
@@ -313,10 +320,13 @@ int main(int argc, char **argv) {
   int start_tilestep=0, end_tilestep_inc = -1;
   int n_tilestep = -1;
   int hiq_flag = 1;
+  int all_endpoints=0;
+
+  int s_offset,n_offset;
 
   VERBOSE_MATCH=0;
 
-  while ((opt = getopt_long(argc, argv, "hvVs:S:n:", long_options, &option_index))!=-1) switch (opt) {
+  while ((opt = getopt_long(argc, argv, "hvVs:S:n:A", long_options, &option_index))!=-1) switch (opt) {
     case 0:
       fprintf(stderr, "invalid argument");
       exit(-1);
@@ -325,6 +335,7 @@ int main(int argc, char **argv) {
     case 'S': end_tilestep_inc = atoi(optarg); break;
     case 'n': n_tilestep = atoi(optarg); break;
     case 'v': verbose_flag = 1; break;
+    case 'A': all_endpoints=1; break;
     case 'V': show_version(); exit(0); break;
     default:
     case 'h': show_help(); exit(0); break;
@@ -337,6 +348,11 @@ int main(int argc, char **argv) {
   if ((argc-optind)>=2) {
     ifn_a = argv[optind];
     ifn_b = argv[optind+1];
+  }
+  else {
+    printf("provide input band files\n");
+    show_help();
+    exit(-1);
   }
 
   if (end_tilestep_inc >= 0) {
@@ -371,11 +387,39 @@ int main(int argc, char **argv) {
     tileband_print(tileband_b);
   }
 
-  tileband_concordance(tileband_a, tileband_b,
-      start_tilestep, n_tilestep,
-      hiq_flag,
-      &match, &tot);
+  if (all_endpoints) {
 
-  printf("match: %i, total: %i\n", match, tot);
+    if (n_tilestep < 0) {
+      n_tilestep = (int)tileband_a.v[0].size();
+    }
+
+    for (s_offset=0; s_offset < (n_tilestep-1); s_offset++) {
+      for (n_offset=1; n_offset < (n_tilestep-s_offset+1); n_offset++) {
+
+        match=0; tot=0;
+        tileband_concordance(tileband_a, tileband_b,
+            start_tilestep + s_offset, n_offset,
+            hiq_flag,
+            &match, &tot);
+
+        printf("[%i+%i] match: %i, total: %i\n",
+            start_tilestep+s_offset, n_offset,
+            match, tot);
+
+      }
+    }
+
+  }
+
+  else {
+
+    tileband_concordance(tileband_a, tileband_b,
+        start_tilestep, n_tilestep,
+        hiq_flag,
+        &match, &tot);
+
+    printf("match: %i, total: %i\n", match, tot);
+
+  }
 
 }

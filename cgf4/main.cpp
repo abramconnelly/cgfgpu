@@ -21,6 +21,8 @@ typedef struct cgf_opt_type {
   int run_test,
       info;
 
+  int all_pairs;
+
   //char *ifn,
   //     *ofn,
   //     *tilemap_fn;
@@ -76,6 +78,8 @@ static struct option long_options[] = {
   {"tilestep",            required_argument,  NULL, 's'},
   {"endtilestep",         required_argument,  NULL, 'S'},
 
+  {"all-pairs",           no_argument,        NULL, '\0'},
+
   {"input",               required_argument,  NULL, 'i'},
   {"output",              required_argument,  NULL, 'o'},
   {"tilemap",             required_argument,  NULL, 't'},
@@ -125,6 +129,8 @@ void init_cgf_opt(cgf_opt_t *opt) {
   opt->match=0;
 
   opt->fill_level=0xff;
+
+  opt->all_pairs=0;
 }
 
 void show_help() {
@@ -145,6 +151,7 @@ void show_help() {
   printf("  [-P|--endtilepath tilepath] end tilepath\n");
   printf("  [-s|--tilestep tilestep]    tilestep (start)\n");
   printf("  [-S|--endtilestep tilestep] end tilestep\n");
+  printf("  [--all-pairs]               all pairs concordance\n");
 
 
   printf("  [-i|--input ifn]            input file (CGF)\n");
@@ -186,8 +193,13 @@ int main(int argc, char **argv) {
 
   while ((opt = getopt_long(argc, argv, "Hb:e:i:o:Ct:T:L:U:hvVAZRIqmp:P:s:S:YF:", long_options, &option_index))!=-1) switch (opt) {
     case 0:
-      fprintf(stderr, "sanity error, invalid option to parse, exiting\n");
-      exit(-1);
+      if (strcmp(long_options[option_index].name, "all-pairs")==0) {
+        cgf_opt.all_pairs=1;
+      }
+      else {
+        fprintf(stderr, "invalid option, exiting\n");
+        exit(-1);
+      }
       break;
     case 'H': cgf_opt.show_header=1; break;
     case 'Y': cgf_opt.run_sanity=1; break;
@@ -227,7 +239,7 @@ int main(int argc, char **argv) {
               cgf_opt.update_header=1;
               break;
     case 'U': cgf_opt.update_header=1; break;
-    default: printf("unknown option"); show_help(); cleanup_ok(); break;
+    default: printf("unknown option"); cleanup_ok(); break;
   }
 
   if (argc>optind) {
@@ -295,17 +307,17 @@ int main(int argc, char **argv) {
        cgf_opt.update_header) != 1) {
     printf("must specify exactly one of show header (-H), show band (-b), encode (-e), delete (-d), create empty container (-C) or update header (-U)\n");
 
-printf("cc %i\n", cgf_opt.create_container);
-printf("enc %i\n", cgf_opt.encode);
-printf("de %i\n", cgf_opt.del);
-printf("sb %i\n", cgf_opt.show_band);
-printf("sh %i\n", cgf_opt.show_header);
-printf("sa %i\n", cgf_opt.show_all);
-printf("rt %i\n", cgf_opt.run_test);
-printf("in %i\n", cgf_opt.info);
-printf("m %i\n", cgf_opt.match);
-printf("rs %i\n", cgf_opt.run_sanity);
-printf("uh %i\n", cgf_opt.update_header);
+    printf("cc %i\n", cgf_opt.create_container);
+    printf("enc %i\n", cgf_opt.encode);
+    printf("de %i\n", cgf_opt.del);
+    printf("sb %i\n", cgf_opt.show_band);
+    printf("sh %i\n", cgf_opt.show_header);
+    printf("sa %i\n", cgf_opt.show_all);
+    printf("rt %i\n", cgf_opt.run_test);
+    printf("in %i\n", cgf_opt.info);
+    printf("m %i\n", cgf_opt.match);
+    printf("rs %i\n", cgf_opt.run_sanity);
+    printf("uh %i\n", cgf_opt.update_header);
 
     cleanup_err();
   }
@@ -564,16 +576,54 @@ printf("uh %i\n", cgf_opt.update_header);
       }
     }
 
-    //printf("## [%i.%i,%i.%i]\n", cgf_opt.tilepath, cgf_opt.tilestep, cgf_opt.endtilepath, cgf_opt.endtilestep);
 
-    //k = cgf_hiq_concordance(&match, &tot, cgf, cgf_b, 0x035e, 0, 0x35e, 34);
-    k = cgf_hiq_concordance( &match, &tot,
-        cgf, cgf_b,
-        cgf_opt.tilepath, cgf_opt.tilestep,
-        cgf_opt.endtilepath, cgf_opt.endtilestep);
+    if (cgf_opt.all_pairs==0) {
 
-    //printf("got(%i): %i / %i\n", k, match, tot);
-    printf("match: %i, total: %i\n", match, tot);
+      k = cgf_hiq_concordance( &match, &tot,
+          cgf, cgf_b,
+          cgf_opt.tilepath, cgf_opt.tilestep,
+          cgf_opt.endtilepath, cgf_opt.endtilestep);
+
+      printf("match: %i, total: %i\n", match, tot);
+
+    }
+    else {
+      int cur_tilepath=0, cur_tilestep=0;
+      int start_tilestep=0, end_tilestep=0, ss=0, ee=0;
+
+      str2tilemap(cgf->TileMap, &(cgf->TileMapCache));
+      cgf->TileMapCacheInit=1;
+
+      str2tilemap(cgf_b->TileMap, &(cgf->TileMapCache));
+      cgf_b->TileMapCacheInit=1;
+
+      start_tilestep = cgf_opt.tilestep;
+      for (cur_tilepath = cgf_opt.tilepath; cur_tilepath <= cgf_opt.endtilepath; cur_tilepath++) {
+
+        ss = ((cur_tilepath == cgf_opt.tilepath) ? cgf_opt.tilestep : 0 );
+        ee = ((cur_tilepath == cgf_opt.endtilepath) ? cgf_opt.endtilestep : (cgf_b->TileStepCount[ cur_tilepath ]-1) );
+
+        for (start_tilestep = ss; start_tilestep < ee; start_tilestep++) {
+          for (end_tilestep = start_tilestep; end_tilestep <= ee; end_tilestep++) {
+
+            match=0; tot=0;
+            k = cgf_hiq_concordance( &match, &tot,
+                cgf, cgf_b,
+                cur_tilepath, start_tilestep,
+                cur_tilepath, end_tilestep);
+
+            printf("[%i][%i+%i] match: %i, total: %i\n",
+                cur_tilepath,
+                start_tilestep, end_tilestep - start_tilestep+1,
+                match, tot);
+
+          }
+
+        }
+
+      }
+
+    }
 
   }
 
@@ -589,7 +639,7 @@ printf("uh %i\n", cgf_opt.update_header);
       cleanup_fail();
     }
 
-    str2tilemap(cgf->TileMap, tm);
+    str2tilemap(cgf->TileMap, &tm);
   }
 
 

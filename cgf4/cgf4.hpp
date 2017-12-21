@@ -36,6 +36,11 @@
 
 extern char DEFAULT_TILEMAP[];
 
+typedef struct tilemap_type {
+  std::vector< int > offset;
+  std::vector< int > variant[2];
+} tilemap_t;
+
 typedef struct tilepath4_type {
   std::string Name;
 
@@ -96,6 +101,9 @@ typedef struct cgf4_type {
   std::string LibraryVersion;
   uint64_t TilePathCount;
   std::string TileMap;
+
+  int TileMapCacheInit=0;
+  tilemap_t TileMapCache;
 
   // Number of elements in the Loq, Span, Canon and
   // CacheOverflow per 'block'.
@@ -244,12 +252,7 @@ typedef struct cgf_ez_type {
 
 } cgf_ez_t;
 
-typedef struct tilemap_type {
-  std::vector< int > offset;
-  std::vector< int > variant[2];
-} tilemap_t;
-
-int str2tilemap(std::string &s, tilemap_t &tilemap);
+int str2tilemap(std::string &s, tilemap_t *tilemap);
 
 const char *read_tilemap_from_file(std::string &, const char *);
 

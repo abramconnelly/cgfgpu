@@ -91,20 +91,20 @@ const char *read_tilemap_from_file(std::string &tilemap_str, const char *fn) {
   return tilemap_str.c_str();
 }
 
-int str2tilemap(std::string &s, tilemap_t &tilemap) {
+int str2tilemap(std::string &s, tilemap_t *tilemap) {
   int i, j, idx, prev, v;
   int cur_allele;
   std::string buf;
 
-  tilemap.offset.clear();
-  tilemap.variant[0].clear();
-  tilemap.variant[1].clear();
+  tilemap->offset.clear();
+  tilemap->variant[0].clear();
+  tilemap->variant[1].clear();
 
   cur_allele=0;
   idx=0;
   while (idx<s.size()) {
     if (s[idx]=='\n')  {
-      tilemap.offset.push_back((int)tilemap.variant[0].size());
+      tilemap->offset.push_back((int)tilemap->variant[0].size());
       idx++;
       cur_allele=0;
 
@@ -133,7 +133,7 @@ int str2tilemap(std::string &s, tilemap_t &tilemap) {
       idx++;
     }
     v = (int)strtol(buf.c_str(), NULL, 16);
-    tilemap.variant[cur_allele].push_back(v);
+    tilemap->variant[cur_allele].push_back(v);
     buf.clear();
 
 //    printf("  a%i %i\n", cur_allele, v);
@@ -156,7 +156,7 @@ int str2tilemap(std::string &s, tilemap_t &tilemap) {
       }
       v = (int)strtol(buf.c_str(), NULL, 16);
       for (i=1; i<v; i++) {
-        tilemap.variant[cur_allele].push_back(-1);
+        tilemap->variant[cur_allele].push_back(-1);
 
         //printf("  a%i -\n", cur_allele);
       }
@@ -164,7 +164,7 @@ int str2tilemap(std::string &s, tilemap_t &tilemap) {
     }
 
   }
-  tilemap.offset.push_back((int)tilemap.variant[0].size());
+  tilemap->offset.push_back((int)tilemap->variant[0].size());
 
   //printf("alleles...\n");
   //for (i=0; i<tilemap.variant[0].size(); i++) { printf(" %i", tilemap.variant[0][i]); }
