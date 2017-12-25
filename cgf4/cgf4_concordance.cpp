@@ -91,7 +91,8 @@ static void print_bin32(uint32_t u32) {
 
 int overflow_concordance16(int *r_match, int *r_tot,
                            std::vector<uint16_t> &a_overflow, int start_a, int end_noninc_a,
-                           std::vector<uint16_t> &b_overflow, int start_b, int end_noninc_b) {
+                           std::vector<uint16_t> &b_overflow, int start_b, int end_noninc_b,
+                           cgf_opt_t *cgf_opt) {
   int anchor_step_a, anchor_step_b;
   int ii, jj, idx;
   std::vector<uint16_t> knot_a, knot_b;
@@ -100,20 +101,7 @@ int overflow_concordance16(int *r_match, int *r_tot,
 
   int loc_debug = 0;
 
-  /*
-  //DEBUG
-  printf(" ending a %i %i %i\n",
-      (int)a_overflow[end_noninc_a-3],
-      (int)a_overflow[end_noninc_a-2],
-      (int)a_overflow[end_noninc_a-1]);
-
-  printf(" ending b %i %i %i\n",
-      (int)b_overflow[end_noninc_b-3],
-      (int)b_overflow[end_noninc_b-2],
-      (int)b_overflow[end_noninc_b-1]);
-      */
-  //---
-
+  if (cgf_opt && (cgf_opt->verbose)) { loc_debug=1; }
 
   if ( ((end_noninc_b-start_b)==0) ||
        ((end_noninc_a-start_a)==0)) {
@@ -126,24 +114,38 @@ int overflow_concordance16(int *r_match, int *r_tot,
   anchor_step_a = (int)a_overflow[ii];
   anchor_step_b = (int)b_overflow[jj];
 
-  anchor_step_a = (int)a_overflow[ii];
+  //DEBUG
+  if (loc_debug) {
+    printf("# ovf_conc16 %i %i\n", anchor_step_a, anchor_step_b);
+  }
+
   knot_a.clear();
   do {
     prev_tile_step16_a = a_overflow[ii];
     knot_a.push_back(a_overflow[ii+1]);
     knot_a.push_back(a_overflow[ii+2]);
+
+    //DEBUG
+    if (loc_debug) {
+      printf("  a %i %i %i\n", a_overflow[ii], a_overflow[ii+1], a_overflow[ii+2]);
+    }
+
     ii+=3;
   } while ((ii<end_noninc_a) &&
            ((a_overflow[ii] - prev_tile_step16_a) <= 1) &&
            ((a_overflow[ii+1] == OVF16_MAX) || (a_overflow[ii+2] == OVF16_MAX)) );
 
-  anchor_step_b = (int)b_overflow[jj];
   knot_b.clear();
   do {
     prev_tile_step16_b = b_overflow[jj];
     knot_b.push_back(b_overflow[jj+1]);
     knot_b.push_back(b_overflow[jj+2]);
 
+    //DEBUG
+    if (loc_debug) {
+      printf("  b %i %i %i\n", b_overflow[jj], b_overflow[jj+1], b_overflow[jj+2]);
+    }
+    //printf("    %i
 
     if (loc_debug) {
       printf("  knot_b++ %i %i %i\n",
@@ -185,7 +187,9 @@ int overflow_concordance16(int *r_match, int *r_tot,
       if (loc_debug) { printf("  ==\n"); }
 
       if ( (knot_a.size()>0) &&
-           (knot_a.size() == knot_b.size()) ) {
+           (knot_a.size() == knot_b.size()) &&
+           (knot_a[0] != OVF16_MAX) &&
+           (knot_b[0] != OVF16_MAX) ) {
         for (idx = 0; idx<knot_a.size(); idx++) {
           if (knot_a[idx] != knot_b[idx]) { break; }
         }
@@ -320,7 +324,9 @@ int overflow_concordance16(int *r_match, int *r_tot,
 
     if (anchor_step_a == anchor_step_b) {
       if ( (knot_a.size()>0) &&
-           (knot_a.size() == knot_b.size()) ) {
+           (knot_a.size() == knot_b.size()) &&
+           (knot_a[0] != OVF16_MAX) &&
+           (knot_b[0] != OVF16_MAX) ) {
         for (idx = 0; idx<knot_a.size(); idx++) {
           if (knot_a[idx] != knot_b[idx]) { break; }
         }
@@ -329,6 +335,7 @@ int overflow_concordance16(int *r_match, int *r_tot,
           if (loc_debug) {
             printf("MATCH %i+%i\n", anchor_step_a, (int)knot_a.size()/2);
             printf("  match! ovf16 (b) %i+%i (knot_a.size %i)\n", anchor_step_a, (int)knot_a.size()/2, (int)knot_a.size());
+            //printf("  match! ovf16 (b..) %i+%i (knot_b.size %i)\n", anchor_step_b, (int)knot_b.size()/2, (int)knot_b.size());
           }
 
           match++;
@@ -415,8 +422,13 @@ int overflow_concordance16(int *r_match, int *r_tot,
 
   if (anchor_step_a == anchor_step_b) {
     if ( (knot_a.size()>0) &&
-         (knot_a.size() == knot_b.size()) ) {
+         (knot_a.size() == knot_b.size()) &&
+         (knot_a[0] != OVF16_MAX) &&
+         (knot_b[0] != OVF16_MAX) ) {
       for (idx = 0; idx<knot_a.size(); idx++) {
+
+        //if (loc_debug) { printf(">>>> %i %i\n", knot_a[idx], knot_b[idx]); }
+
         if (knot_a[idx] != knot_b[idx]) { break; }
       }
 
@@ -426,6 +438,7 @@ int overflow_concordance16(int *r_match, int *r_tot,
         if (loc_debug) {
           printf("MATCH %i+%i\n", anchor_step_a, (int)knot_a.size()/2);
           printf("  match! ovf16 (c) %i+%i (knot_a.size %i)\n", anchor_step_a, (int)knot_a.size()/2, (int)knot_a.size());
+          printf("  match! ovf16 (c..) %i+%i (knot_b.size %i)\n", anchor_step_b, (int)knot_b.size()/2, (int)knot_b.size());
           fflush(stdout);
         }
 
@@ -456,7 +469,8 @@ int overflow_concordance16(int *r_match, int *r_tot,
 int cgf_hiq_concordance(int *r_match, int *r_tot,
                         cgf_t *a, cgf_t *b,
                         int start_tile_path, int start_tile_step,
-                        int end_tile_path_inc, int end_tile_step_inc) {
+                        int end_tile_path_inc, int end_tile_step_inc,
+                        cgf_opt_t *cgf_opt) {
   int loc_debug = 0;
 
   int i, j, k, p;
@@ -513,8 +527,6 @@ int cgf_hiq_concordance(int *r_match, int *r_tot,
   std::vector<int> knot_a, knot_b;
   int knot_len=0;
 
-
-  //int init_tilemap=1;
   tilemap_t *tilemap, tm;
 
   // interleaved step, cache val
@@ -525,6 +537,11 @@ int cgf_hiq_concordance(int *r_match, int *r_tot,
   //
   std::vector< int > spillover_knot_a, spillover_knot_b;
   std::vector< uint16_t > spillover16_knot_a, spillover16_knot_b;
+
+  if (cgf_opt && (cgf_opt->verbose)) {
+    loc_debug=1;
+  }
+
 
   knot_a.clear();             knot_b.clear();
   spillover_a.clear();        spillover_b.clear();
@@ -556,9 +573,6 @@ int cgf_hiq_concordance(int *r_match, int *r_tot,
   else {
     tilemap = &(a->TileMapCache);
   }
-
-
-
 
   stride = a->Stride;
   tilepath_idx = start_tile_path;
@@ -593,13 +607,13 @@ int cgf_hiq_concordance(int *r_match, int *r_tot,
 
   //start_block_tile = start_tile_step / 32;
   start_block_tile = start_tile_step / (8*stride);
+  start_block_tile *= 32;
 
   for (ii=n_q; ii<=n_q_end; ii++, start_block_tile+=32) {
 
     // Reset relevant tile path and tile step information
     //
     //if (ii >= a->StrideOffset[tilepath_idx]) { start_block_tile=0; }
-
 
     //env_mask_a = 0xffffffff;
     //env_mask_b = 0xffffffff;
@@ -916,10 +930,10 @@ int cgf_hiq_concordance(int *r_match, int *r_tot,
         if ((hexit_a[i] == 0) || (hexit_a[i] >= 0xf)) { continue; }
 
         if ( ( (ii == n_q) &&
-               ((start_block_tile + hexit_relative_step_b[i]) < start_tile_step) )
+               ((start_block_tile + hexit_relative_step_a[i]) < start_tile_step) )
             ||
              ( (ii == n_q_end) &&
-               ((start_block_tile + hexit_relative_step_b[i]) > end_tile_step_inc) )
+               ((start_block_tile + hexit_relative_step_a[i]) > end_tile_step_inc) )
              ) {
 
           //do nothing
@@ -1154,7 +1168,8 @@ int cgf_hiq_concordance(int *r_match, int *r_tot,
       t_match=0; t_tot=0;
       overflow_concordance16(&t_match, &t_tot,
                              a->Overflow, iistart, end_noninc_a,
-                             spillover16_knot_b, 0, (int)spillover16_knot_b.size());
+                             spillover16_knot_b, 0, (int)spillover16_knot_b.size(),
+                             cgf_opt);
       match += t_match;
       //tot += tot;
 
@@ -1173,7 +1188,8 @@ int cgf_hiq_concordance(int *r_match, int *r_tot,
       t_match=0; t_tot = 0;
       overflow_concordance16(&t_match, &t_tot,
                              spillover16_knot_a, 0, (int)spillover16_knot_a.size(),
-                             b->Overflow, jjstart, end_noninc_b);
+                             b->Overflow, jjstart, end_noninc_b,
+                             cgf_opt);
       match += t_match;
       //tot += tot;
 
@@ -1271,7 +1287,8 @@ int cgf_hiq_concordance(int *r_match, int *r_tot,
     t_match=0; t_tot=0;
     overflow_concordance16( &t_match, &t_tot,
                             a->Overflow, iistart, end_noninc_a,
-                            b->Overflow, jjstart, end_noninc_b);
+                            b->Overflow, jjstart, end_noninc_b,
+                            cgf_opt);
     match += t_match;
 
     if (loc_debug) {

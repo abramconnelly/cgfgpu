@@ -867,3 +867,18 @@ void cgf_output_band_format2(cgf_t *cgf, int tilepath_idx, FILE *fp, int step_st
 
 }
 
+//---
+
+
+void cgf4_print_tilepath_stats(cgf_t *cgf, std::vector<int> &tilepaths) {
+  int i, j, k, idx;
+  int tilepath;
+
+  for (idx=0; idx<tilepaths.size(); idx++) {
+    tilepath = tilepaths[idx];
+
+
+
+  }
+}
+

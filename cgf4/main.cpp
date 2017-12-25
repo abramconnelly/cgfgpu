@@ -6,56 +6,6 @@
 #define cleanup() do { show_help(); goto cgf_cleanup; } while (0);
 
 
-typedef struct cgf_opt_type {
-  int show_header,
-      show_band,
-      encode,
-      show_help,
-      show_version,
-      verbose,
-      del,
-      create_container,
-      tilemap,
-      show_all,
-      ez_print;
-  int run_test,
-      info;
-
-  int all_pairs;
-
-  //char *ifn,
-  //     *ofn,
-  //     *tilemap_fn;
-  //char *band_ifn;
-
-  FILE *band_ifp;
-
-  int cgf_version_opt;
-  std::vector< std::string > cgf_version_opt_ele;
-  std::string cgf_version_str;
-  int update_cgf_version;
-
-  int cglf_version_opt;
-  std::vector< std::string > cglf_version_opt_ele;
-  std::string cglf_version_str;
-  int update_cglf_version;
-
-  std::string ifn, ofn, tilemap_fn, band_ifn;
-  std::vector< std::string > ifns;
-
-  int update_header;
-  int hiq_only;
-
-  int match;
-  int run_sanity;
-
-  int tilepath, endtilepath;
-  int tilestep, endtilestep;
-
-  uint32_t fill_level;
-
-} cgf_opt_t;
-
 static struct option long_options[] = {
   {"header",              no_argument,        NULL, 'H'},
   {"create-container",    no_argument,        NULL, 'C'},
@@ -322,11 +272,11 @@ int main(int argc, char **argv) {
     cleanup_err();
   }
 
-	//                  __       _             
+	//                  __       _
 	//   _______  ___  / /____ _(_)__  ___ ____
 	//  / __/ _ \/ _ \/ __/ _ `/ / _ \/ -_) __/
-	//  \__/\___/_//_/\__/\_,_/_/_//_/\__/_/   
-	//                                         
+	//  \__/\___/_//_/\__/\_,_/_/_//_/\__/_/
+	//
 
   if (cgf_opt.create_container) {
 
@@ -360,11 +310,11 @@ int main(int argc, char **argv) {
         tilemap_str.c_str());
   }
 
-	//                         __   
-	//   ___ ___  _______  ___/ /__ 
+	//                         __
+	//   ___ ___  _______  ___/ /__
 	//  / -_) _ \/ __/ _ \/ _  / -_)
-	//  \__/_//_/\__/\___/\_,_/\__/ 
-	//                              
+	//  \__/_//_/\__/\___/\_,_/\__/
+	//
 
 	else if (cgf_opt.encode) {
     if (cgf_opt.tilepath<0) { printf("must specify tilepath\n"); cleanup_err(); }
@@ -420,6 +370,12 @@ int main(int argc, char **argv) {
     k = cgf_write_to_file(cgf, cgf_opt.ofn.c_str());
 
   }
+
+  //    __                __
+  //   / /  ___ ____  ___/ /
+  //  / _ \/ _ `/ _ \/ _  /
+  // /_.__/\_,_/_//_/\_,_/
+  //
 
   else if (cgf_opt.show_band) {
 		if (cgf_opt.tilepath<0) { printf("must specify tilepath\n"); cleanup_err(); }
@@ -488,6 +444,12 @@ int main(int argc, char **argv) {
 
   }
 
+  //      __    __                        _      __ 
+  //  ___/ /__ / /  __ _____ _  ___  ____(_)__  / /_
+  // / _  / -_) _ \/ // / _ `/ / _ \/ __/ / _ \/ __/
+  // \_,_/\__/_.__/\_,_/\_, / / .__/_/ /_/_//_/\__/ 
+  //
+
   else if (cgf_opt.show_all) {
     //if ((ifp=fopen(cgf_opt.ifn, "r"))==NULL) { perror(cgf_opt.ifn); cleanup_err(); }
     if ((ifp=fopen(cgf_opt.ifn.c_str(), "r"))==NULL) { perror(cgf_opt.ifn.c_str()); cleanup_err(); }
@@ -501,6 +463,12 @@ int main(int argc, char **argv) {
 
     cgf_print(cgf);
   }
+
+  //    _      ___   
+  //   (_)__  / _/__ 
+  //  / / _ \/ _/ _ \
+  // /_/_//_/_/ \___/
+  //
 
   else if (cgf_opt.info) {
 
@@ -518,6 +486,12 @@ int main(int argc, char **argv) {
     printf("sanity: %i\n", cgf_sanity(cgf));
 
   }
+
+  //                                 __
+  //  _______  ___  _______  _______/ /__ ____  _______
+  // / __/ _ \/ _ \/ __/ _ \/ __/ _  / _ `/ _ \/ __/ -_)
+  // \__/\___/_//_/\__/\___/_/  \_,_/\_,_/_//_/\__/\__/
+  //
 
   else if (cgf_opt.match) {
 
@@ -582,7 +556,8 @@ int main(int argc, char **argv) {
       k = cgf_hiq_concordance( &match, &tot,
           cgf, cgf_b,
           cgf_opt.tilepath, cgf_opt.tilestep,
-          cgf_opt.endtilepath, cgf_opt.endtilestep);
+          cgf_opt.endtilepath, cgf_opt.endtilestep,
+          &cgf_opt);
 
       printf("match: %i, total: %i\n", match, tot);
 
@@ -610,7 +585,8 @@ int main(int argc, char **argv) {
             k = cgf_hiq_concordance( &match, &tot,
                 cgf, cgf_b,
                 cur_tilepath, start_tilestep,
-                cur_tilepath, end_tilestep);
+                cur_tilepath, end_tilestep,
+                &cgf_opt);
 
             printf("[%i][%i+%i] match: %i, total: %i\n",
                 cur_tilepath,
@@ -627,6 +603,12 @@ int main(int argc, char **argv) {
 
   }
 
+  //    __               __
+  //   / /  ___ ___ ____/ /__ ____
+  //  / _ \/ -_) _ `/ _  / -_) __/
+  // /_//_/\__/\_,_/\_,_/\__/_/
+  //
+
   else if (cgf_opt.show_header) {
     tilemap_t tm;
 
@@ -641,11 +623,6 @@ int main(int argc, char **argv) {
 
     str2tilemap(cgf->TileMap, &tm);
   }
-
-
-
-
-
 
 cgf_cleanup:
   //if (cgf_opt.ifn) { free(cgf_opt.ifn); }

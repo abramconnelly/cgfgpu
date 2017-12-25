@@ -319,7 +319,7 @@ int cgf_sanity(cgf_t *cgf) {
     match =
       overflow_concordance16(NULL, NULL,
                              spillover16_knot, 0, (int)spillover16_knot.size(),
-                             cgf->Overflow, (int)s64, (int)(s64+n_ovf));
+                             cgf->Overflow, (int)s64, (int)(s64+n_ovf), NULL);
 
     if (match != 0) {
 

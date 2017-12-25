@@ -252,6 +252,57 @@ typedef struct cgf_ez_type {
 
 } cgf_ez_t;
 
+typedef struct cgf_opt_type {
+  int show_header,
+      show_band,
+      encode,
+      show_help,
+      show_version,
+      verbose,
+      del,
+      create_container,
+      tilemap,
+      show_all,
+      ez_print;
+  int run_test,
+      info;
+
+  int all_pairs;
+
+  //char *ifn,
+  //     *ofn,
+  //     *tilemap_fn;
+  //char *band_ifn;
+
+  FILE *band_ifp;
+
+  int cgf_version_opt;
+  std::vector< std::string > cgf_version_opt_ele;
+  std::string cgf_version_str;
+  int update_cgf_version;
+
+  int cglf_version_opt;
+  std::vector< std::string > cglf_version_opt_ele;
+  std::string cglf_version_str;
+  int update_cglf_version;
+
+  std::string ifn, ofn, tilemap_fn, band_ifn;
+  std::vector< std::string > ifns;
+
+  int update_header;
+  int hiq_only;
+
+  int match;
+  int run_sanity;
+
+  int tilepath, endtilepath;
+  int tilestep, endtilestep;
+
+  uint32_t fill_level;
+
+} cgf_opt_t;
+
+
 int str2tilemap(std::string &s, tilemap_t *tilemap);
 
 const char *read_tilemap_from_file(std::string &, const char *);
@@ -315,7 +366,8 @@ int cgf_sanity(cgf_t *cgf);
 //
 int overflow_concordance16(int *r_match, int *r_tot,
                            std::vector<uint16_t> &a_overflow, int start_a, int end_noninc_a,
-                           std::vector<uint16_t> &b_overflow, int start_b, int end_noninc_b);
+                           std::vector<uint16_t> &b_overflow, int start_b, int end_noninc_b,
+                           cgf_opt_t *cgf_opt);
 
 
 // r_match will hold the number of high quality matches
@@ -324,7 +376,8 @@ int overflow_concordance16(int *r_match, int *r_tot,
 int cgf_hiq_concordance(int *r_match, int *r_tot,
                         cgf_t *a, cgf_t *b,
                         int start_tile_path, int start_tile_step,
-                        int end_tile_path, int end_tile_step);
+                        int end_tile_path, int end_tile_step,
+                        cgf_opt_t *cgf_opt);
 
 
 
