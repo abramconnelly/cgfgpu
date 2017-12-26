@@ -299,6 +299,8 @@ typedef struct cgf_opt_type {
   int tilepath, endtilepath;
   int tilestep, endtilestep;
 
+  int repeat;
+
   uint32_t fill_level;
 
 } cgf_opt_t;
@@ -370,6 +372,13 @@ int overflow_concordance16(int *r_match, int *r_tot,
                            std::vector<uint16_t> &a_overflow, int start_a, int end_noninc_a,
                            std::vector<uint16_t> &b_overflow, int start_b, int end_noninc_b,
                            cgf_opt_t *cgf_opt);
+
+/*
+int overflow_concordance16_z( int *r_match, int *r_tot,
+                              uint16_t *a_overflow, int start_a, int end_noninc_a,
+                              uint16_t *b_overflow, int start_b, int end_noninc_b,
+                              cgf_opt_t *cgf_opt);
+                              */
 
 
 // r_match will hold the number of high quality matches

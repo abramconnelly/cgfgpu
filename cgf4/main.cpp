@@ -30,6 +30,7 @@ static struct option long_options[] = {
 
   {"all-pairs",           no_argument,        NULL, '\0'},
   {"show-stats",          no_argument,        NULL, '\0'},
+  {"repeat",              required_argument,  NULL, '\0'},
 
   {"input",               required_argument,  NULL, 'i'},
   {"output",              required_argument,  NULL, 'o'},
@@ -82,6 +83,7 @@ void init_cgf_opt(cgf_opt_t *opt) {
   opt->fill_level=0xff;
 
   opt->all_pairs=0;
+  opt->repeat = 0;
 
   opt->print_stats=0;
 }
@@ -127,6 +129,69 @@ void show_version() {
   printf("version %s\n", CGF_VERSION);
 }
 
+#ifdef SAMPLE_STACK_PROFILER
+// g++ -rdynamic bt_debug_test.c
+//
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/time.h>
+#include <signal.h>
+
+#include <execinfo.h>
+#include <unistd.h>
+
+#include <string>
+#include <vector>
+
+
+void timer_handler(int signum) {
+
+  void *buffers[1024];
+  char **strings;
+  int i, nret, bufsz = 1024;
+  int custom_debug=0;
+
+  nret = backtrace(buffers, bufsz);
+
+  printf("\n---\ntimer: got %i\n", nret);
+  fflush(stdout);
+
+  if (custom_debug) {
+
+    strings = backtrace_symbols(buffers, nret);
+    if (strings != NULL) {
+      for (i=0; i<nret; i++) {
+        printf("[%i] %s\n", i, strings[i]);
+      }
+
+      free(strings);
+    }
+
+  }
+  else {
+    backtrace_symbols_fd(buffers, nret, STDOUT_FILENO);
+    fflush(stdout);
+  }
+
+}
+
+void setup_timer(struct sigaction *sa, struct itimerval *timer, void (*timer_func)(int), suseconds_t usec) {
+  memset(sa, 0, sizeof(struct sigaction));
+  sa->sa_handler = timer_func;
+  sigaction(SIGVTALRM, sa, NULL);
+
+  timer->it_value.tv_sec = 0;
+  timer->it_value.tv_usec = usec; //e.g. 250000;
+  timer->it_interval.tv_sec = 0;
+  timer->it_interval.tv_usec = usec; //e.g. 250000;
+  setitimer(ITIMER_VIRTUAL, timer, NULL);
+
+}
+
+#endif
+
+
 int main(int argc, char **argv) {
   int i, j, k, opt, ret=0, idx;
   int n_step=0;
@@ -142,6 +207,18 @@ int main(int argc, char **argv) {
 
   cgf_opt_t cgf_opt;
 
+#ifdef SAMPLE_STACK_PROFILER
+  struct sigaction sa;
+  struct itimerval timer;
+	suseconds_t usec;
+
+  usec = 250000;
+  usec = 25000;
+
+  setup_timer(&sa, &timer, timer_handler, usec);
+#endif
+
+
   init_cgf_opt(&cgf_opt);
 
   while ((opt = getopt_long(argc, argv, "Hb:e:i:o:Ct:T:L:U:hvVAZRIqmp:P:s:S:YF:", long_options, &option_index))!=-1) switch (opt) {
@@ -151,6 +228,9 @@ int main(int argc, char **argv) {
       }
       else if (strcmp(long_options[option_index].name, "show-stats")==0) {
         cgf_opt.print_stats=1;
+      }
+      else if (strcmp(long_options[option_index].name, "repeat")==0) {
+        cgf_opt.repeat = atoi(optarg);
       }
       else {
         fprintf(stderr, "invalid option, exiting\n");
@@ -565,13 +645,33 @@ int main(int argc, char **argv) {
 
     if (cgf_opt.all_pairs==0) {
 
-      k = cgf_hiq_concordance( &match, &tot,
-          cgf, cgf_b,
-          cgf_opt.tilepath, cgf_opt.tilestep,
-          cgf_opt.endtilepath, cgf_opt.endtilestep,
-          &cgf_opt);
+      str2tilemap(cgf->TileMap, &(cgf->TileMapCache));
+      cgf->TileMapCacheInit=1;
 
-      printf("match: %i, total: %i\n", match, tot);
+      str2tilemap(cgf_b->TileMap, &(cgf->TileMapCache));
+      cgf_b->TileMapCacheInit=1;
+
+      if (cgf_opt.repeat==0) {
+        k = cgf_hiq_concordance( &match, &tot,
+            cgf, cgf_b,
+            cgf_opt.tilepath, cgf_opt.tilestep,
+            cgf_opt.endtilepath, cgf_opt.endtilestep,
+            &cgf_opt);
+
+        printf("match: %i, total: %i\n", match, tot);
+      }
+      else {
+
+        for (i=0; i<cgf_opt.repeat; i++) {
+          k = cgf_hiq_concordance( &match, &tot,
+              cgf, cgf_b,
+              cgf_opt.tilepath, cgf_opt.tilestep,
+              cgf_opt.endtilepath, cgf_opt.endtilestep,
+              &cgf_opt);
+          printf("[%i] match: %i, total: %i\n", i, match, tot);
+        }
+
+      }
 
     }
     else {
