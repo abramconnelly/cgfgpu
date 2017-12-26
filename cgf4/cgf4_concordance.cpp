@@ -1,7 +1,7 @@
 #include "cgf4.hpp"
 
 // For the most part, high quality tile concordance is
-// straight forward:
+// conceptually straight forward:
 //
 //   compare the tiles at a particluar position and increment the
 //   count if they match, with the total being the number of high
@@ -41,7 +41,7 @@
 // Depending on the context, this could be counter-intuitive as individual high quality
 // knot or tile counts could vary between the pair high quality knot counts.
 //
-// For example, consider the following example:
+// For example, consider the following example (where '|' denote knot boundaries):
 //
 //                        |           |       |       |
 // Datasat0:    [ [ 0, -1, 13, -1, -1, 17, -1, 23, -1,  1 ],
@@ -60,7 +60,7 @@
 // The concordance between these two would give 4 knots that are
 // of high quailty between the two, of which only 2 matched.
 // That is, if the two datasets (suitably encoded) were passed
-// to thi concordance function, the result would be:
+// to this concordance method, the result would be:
 //
 //   2 match
 //   4 total
@@ -69,7 +69,7 @@
 // 4 valid high quality knots.
 //
 // As stated previously, knots with any no-call in it renders the whole
-// knot as a no-call knot an don't add to the count of the total or
+// knot as a no-call knot and don't add to the count of the total or
 // matched knots returned.
 //
 
@@ -89,6 +89,31 @@ static void print_bin32(uint32_t u32) {
 
 }
 
+// Attemp at an optimized overflow concordance.
+// Runs concordance against overflow uint16_t arrays.
+// "Elements" in the overflow arrays are grouped into 3
+// uint16_t, with the first being the position, the second
+// being allele 0 and the third being allele 1.
+// `start_[ab]` starts at the real position and the
+// end value ends at the real position.
+//
+// Overflow values are encoded as OVF16_MAX
+//
+// For example:
+//
+//   [ 20 0 0 21 OVF16_MAX 0 ... ]
+//
+//   start_a could be 0, end_noninc_a could be 2.
+//
+// r_match and r_tot are updated with the number matched
+// and the total considered.
+// The total is the number of 'knot' positions each overflow array
+// shares.
+// Though this function is relatively agnostic about the source of the
+// data, since the overflow16 vectors typically only store high quality
+// tiles, the normal usage is that this will compare only high quality
+// overflow elements.
+//
 inline int overflow_concordance16_z(int *r_match, int *r_tot,
                              uint16_t *a_overflow, int start_a, int end_noninc_a,
                              uint16_t *b_overflow, int start_b, int end_noninc_b,
@@ -117,7 +142,6 @@ inline int overflow_concordance16_z(int *r_match, int *r_tot,
   anchor_step_b = (int)b_overflow[jj];
 
 #ifdef CONC_DEBUG
-  //DEBUG
   if (loc_debug) {
     printf("# ovf_conc16 %i %i\n", anchor_step_a, anchor_step_b);
   }
@@ -130,7 +154,6 @@ inline int overflow_concordance16_z(int *r_match, int *r_tot,
     knot_a_n += 3;
 
 #ifdef CONC_DEBUG
-    //DEBUG
     if (loc_debug) {
       printf("  a %i %i %i\n", a_overflow[ii], a_overflow[ii+1], a_overflow[ii+2]);
     }
@@ -148,11 +171,9 @@ inline int overflow_concordance16_z(int *r_match, int *r_tot,
     knot_b_n += 3;
 
 #ifdef CONC_DEBUG
-    //DEBUG
     if (loc_debug) {
       printf("  b %i %i %i\n", b_overflow[jj], b_overflow[jj+1], b_overflow[jj+2]);
     }
-    //printf("    %i
 
     if (loc_debug) {
       printf("  knot_b++ %i %i %i\n",
@@ -170,7 +191,6 @@ inline int overflow_concordance16_z(int *r_match, int *r_tot,
   while ((ii<end_noninc_a) && (jj<end_noninc_b)) {
 
 #ifdef CONC_DEBUG
-    //DEBUG
     if (loc_debug) {
       printf("ii %i (/%i), jj %i (/%i)\n",
           (int)ii, (int)end_noninc_a,
@@ -194,7 +214,6 @@ inline int overflow_concordance16_z(int *r_match, int *r_tot,
       tot++;
 
 #ifdef CONC_DEBUG
-      //DEBUG
       if (loc_debug) { printf("  ==\n"); }
 #endif
 
@@ -210,8 +229,6 @@ inline int overflow_concordance16_z(int *r_match, int *r_tot,
         if (idx == knot_a_n) {
 
 #ifdef CONC_DEBUG
-          //DEBUG
-          //printf("MATCH %i+%i\n", anchor_step_a, (int)knot_a.size()/2);
           if (loc_debug) {
             printf("MATCH %i+%i (match count %i)\n", anchor_step_a, (int)knot_a_n/3, match);
             printf("  match! ovf16_z (a) %i+%i (knot_a_n %i)\n", anchor_step_a, (int)knot_a_n/3, (int)knot_a_n);
@@ -238,7 +255,6 @@ inline int overflow_concordance16_z(int *r_match, int *r_tot,
         knot_a_n+=3;
 
 #ifdef CONC_DEBUG
-        //DEBUG
         if (loc_debug) {
           printf("  knot_a++ %i %i %i\n",
               (int)a_overflow[ii],
@@ -253,13 +269,12 @@ inline int overflow_concordance16_z(int *r_match, int *r_tot,
                ((a_overflow[ii+1] == OVF16_MAX) || (a_overflow[ii+2] == OVF16_MAX)) );
 
       anchor_step_b = (int)b_overflow[jj];
-      //knot_b.clear();
+
       do {
         prev_tile_step16_b = b_overflow[jj];
         knot_b_n+=3;
 
 #ifdef CONC_DEBUG
-        //DEBUG
         if (loc_debug) {
           printf("  knot_b++ %i %i %i\n",
               (int)b_overflow[jj],
@@ -280,7 +295,6 @@ inline int overflow_concordance16_z(int *r_match, int *r_tot,
     if (anchor_step_a < anchor_step_b) {
 
 #ifdef CONC_DEBUG
-      //DEBUG
       if (loc_debug) { printf("  <\n");  }
 #endif
 
@@ -295,7 +309,6 @@ inline int overflow_concordance16_z(int *r_match, int *r_tot,
         knot_a_n+=3;
 
 #ifdef CONC_DEBUG
-        //DEBUG
         if (loc_debug) {
           printf("  knot_a++ %i %i %i\n",
               (int)a_overflow[ii],
@@ -315,7 +328,6 @@ inline int overflow_concordance16_z(int *r_match, int *r_tot,
     if (anchor_step_a > anchor_step_b) {
 
 #ifdef CONC_DEBUG
-      //DEBUG
       if (loc_debug) { printf("  >\n"); }
 #endif
 
@@ -330,7 +342,6 @@ inline int overflow_concordance16_z(int *r_match, int *r_tot,
         knot_b_n+=3;
 
 #ifdef CONC_DEBUG
-        //DEBUG
         if (loc_debug) {
           printf("  knot_b++ %i %i %i\n",
               (int)b_overflow[jj],
@@ -366,7 +377,6 @@ inline int overflow_concordance16_z(int *r_match, int *r_tot,
           if (loc_debug) {
             printf("MATCH %i+%i\n", anchor_step_a, (int)knot_a_n/3);
             printf("  match! ovf16 (b) %i+%i (knot_a.size %i)\n", anchor_step_a, (int)knot_a_n/3, (int)knot_a_n);
-            //printf("  match! ovf16 (b..) %i+%i (knot_b.size %i)\n", anchor_step_b, (int)knot_b.size()/2, (int)knot_b.size());
           }
 #endif
 
@@ -387,7 +397,6 @@ inline int overflow_concordance16_z(int *r_match, int *r_tot,
          (anchor_step_a < anchor_step_b)) {
 
 #ifdef CONC_DEBUG
-    //DEBUG
     if (loc_debug) { printf("  < (fin)\n");  }
 #endif
 
@@ -402,7 +411,6 @@ inline int overflow_concordance16_z(int *r_match, int *r_tot,
       knot_a_n+=3;
 
 #ifdef CONC_DEBUG
-      //DEBUG
       if (loc_debug) {
         printf("  knot_a++ %i %i %i\n",
             (int)a_overflow[ii],
@@ -424,7 +432,6 @@ inline int overflow_concordance16_z(int *r_match, int *r_tot,
          (anchor_step_a > anchor_step_b)) {
 
 #ifdef CONC_DEBUG
-    //DEBUG
     if (loc_debug) { printf("  > (fin)\n"); }
 #endif
 
@@ -439,7 +446,6 @@ inline int overflow_concordance16_z(int *r_match, int *r_tot,
       knot_b_n+=3;
 
 #ifdef CONC_DEBUG
-      //DEBUG
       if (loc_debug) {
         printf("  knot_b++ %i %i %i\n",
             (int)b_overflow[jj],
@@ -473,7 +479,6 @@ inline int overflow_concordance16_z(int *r_match, int *r_tot,
       if (idx == knot_a_n) {
 
 #ifdef CONC_DEBUG
-        //DEBUG
         if (loc_debug) {
           printf("MATCH %i+%i\n", anchor_step_a, (int)knot_a_n/3);
           printf("  match! ovf16 (c) %i+%i (knot_a.size %i)\n", anchor_step_a, (int)knot_a_n/3, (int)knot_a_n);
@@ -487,8 +492,6 @@ inline int overflow_concordance16_z(int *r_match, int *r_tot,
     }
   }
 
-
-
   if (r_match) { *r_match = match; }
   if (r_tot) { *r_tot = tot; }
 
@@ -497,6 +500,9 @@ inline int overflow_concordance16_z(int *r_match, int *r_tot,
 
 }
 
+// "unoptimized" overflow concordance function.
+// Not used but functional and kept as reference.
+//
 int overflow_concordance16(int *r_match, int *r_tot,
                            std::vector<uint16_t> &a_overflow, int start_a, int end_noninc_a,
                            std::vector<uint16_t> &b_overflow, int start_b, int end_noninc_b,
@@ -528,7 +534,6 @@ int overflow_concordance16(int *r_match, int *r_tot,
   anchor_step_b = (int)b_overflow[jj];
 
 #ifdef CONC_DEBUG
-  //DEBUG
   if (loc_debug) {
     printf("# ovf_conc16 %i %i\n", anchor_step_a, anchor_step_b);
   }
@@ -541,7 +546,6 @@ int overflow_concordance16(int *r_match, int *r_tot,
     knot_a.push_back(a_overflow[ii+2]);
 
 #ifdef CONC_DEBUG
-    //DEBUG
     if (loc_debug) {
       printf("  a %i %i %i\n", a_overflow[ii], a_overflow[ii+1], a_overflow[ii+2]);
     }
@@ -559,11 +563,9 @@ int overflow_concordance16(int *r_match, int *r_tot,
     knot_b.push_back(b_overflow[jj+2]);
 
 #ifdef CONC_DEBUG
-    //DEBUG
     if (loc_debug) {
       printf("  b %i %i %i\n", b_overflow[jj], b_overflow[jj+1], b_overflow[jj+2]);
     }
-    //printf("    %i
 
     if (loc_debug) {
       printf("  knot_b++ %i %i %i\n",
@@ -581,7 +583,6 @@ int overflow_concordance16(int *r_match, int *r_tot,
   while ((ii<end_noninc_a) && (jj<end_noninc_b)) {
 
 #ifdef CONC_DEBUG
-    //DEBUG
     if (loc_debug) {
       printf("ii %i (/%i), jj %i (/%i)\n",
           (int)ii, (int)end_noninc_a,
@@ -605,7 +606,6 @@ int overflow_concordance16(int *r_match, int *r_tot,
       tot++;
 
 #ifdef CONC_DEBUG
-      //DEBUG
       if (loc_debug) { printf("  ==\n"); }
 #endif
 
@@ -623,8 +623,6 @@ int overflow_concordance16(int *r_match, int *r_tot,
         if (idx == knot_a_size) {
 
 #ifdef CONC_DEBUG
-          //DEBUG
-          //printf("MATCH %i+%i\n", anchor_step_a, (int)knot_a.size()/2);
           if (loc_debug) {
             printf("MATCH %i+%i (match count %i)\n", anchor_step_a, (int)knot_a.size()/2, match);
             printf("  match! ovf16 (a) %i+%i (knot_a.size %i)\n", anchor_step_a, (int)knot_a.size()/2, (int)knot_a.size());
@@ -643,14 +641,13 @@ int overflow_concordance16(int *r_match, int *r_tot,
       if (jj >= end_noninc_b) { continue; }
 
       anchor_step_a = (int)a_overflow[ii];
-      //knot_a.clear();
+
       do {
         prev_tile_step16_a = a_overflow[ii];
         knot_a.push_back((int)a_overflow[ii+1]);
         knot_a.push_back((int)a_overflow[ii+2]);
 
 #ifdef CONC_DEBUG
-        //DEBUG
         if (loc_debug) {
           printf("  knot_a++ %i %i %i\n",
               (int)a_overflow[ii],
@@ -665,14 +662,13 @@ int overflow_concordance16(int *r_match, int *r_tot,
                ((a_overflow[ii+1] == OVF16_MAX) || (a_overflow[ii+2] == OVF16_MAX)) );
 
       anchor_step_b = (int)b_overflow[jj];
-      //knot_b.clear();
+
       do {
         prev_tile_step16_b = b_overflow[jj];
         knot_b.push_back((int)b_overflow[jj+1]);
         knot_b.push_back((int)b_overflow[jj+2]);
 
 #ifdef CONC_DEBUG
-        //DEBUG
         if (loc_debug) {
           printf("  knot_b++ %i %i %i\n",
               (int)b_overflow[jj],
@@ -693,7 +689,6 @@ int overflow_concordance16(int *r_match, int *r_tot,
     if (anchor_step_a < anchor_step_b) {
 
 #ifdef CONC_DEBUG
-      //DEBUG
       if (loc_debug) { printf("  <\n");  }
 #endif
 
@@ -702,14 +697,13 @@ int overflow_concordance16(int *r_match, int *r_tot,
       if (ii >= end_noninc_a) { continue; }
 
       anchor_step_a = (int)a_overflow[ii];
-      //knot_a.clear();
+
       do {
         prev_tile_step16_a = a_overflow[ii];
         knot_a.push_back((int)a_overflow[ii+1]);
         knot_a.push_back((int)a_overflow[ii+2]);
 
 #ifdef CONC_DEBUG
-        //DEBUG
         if (loc_debug) {
           printf("  knot_a++ %i %i %i\n",
               (int)a_overflow[ii],
@@ -729,7 +723,6 @@ int overflow_concordance16(int *r_match, int *r_tot,
     if (anchor_step_a > anchor_step_b) {
 
 #ifdef CONC_DEBUG
-      //DEBUG
       if (loc_debug) { printf("  >\n"); }
 #endif
 
@@ -738,14 +731,13 @@ int overflow_concordance16(int *r_match, int *r_tot,
       if (jj >= end_noninc_b) { continue; }
 
       anchor_step_b = (int)b_overflow[jj];
-      //knot_b.clear();
+
       do {
         prev_tile_step16_b = b_overflow[jj];
         knot_b.push_back((int)b_overflow[jj+1]);
         knot_b.push_back((int)b_overflow[jj+2]);
 
 #ifdef CONC_DEBUG
-        //DEBUG
         if (loc_debug) {
           printf("  knot_b++ %i %i %i\n",
               (int)b_overflow[jj],
@@ -783,7 +775,6 @@ int overflow_concordance16(int *r_match, int *r_tot,
           if (loc_debug) {
             printf("MATCH %i+%i\n", anchor_step_a, (int)knot_a.size()/2);
             printf("  match! ovf16 (b) %i+%i (knot_a.size %i)\n", anchor_step_a, (int)knot_a.size()/2, (int)knot_a.size());
-            //printf("  match! ovf16 (b..) %i+%i (knot_b.size %i)\n", anchor_step_b, (int)knot_b.size()/2, (int)knot_b.size());
           }
 #endif
 
@@ -804,7 +795,6 @@ int overflow_concordance16(int *r_match, int *r_tot,
          (anchor_step_a < anchor_step_b)) {
 
 #ifdef CONC_DEBUG
-    //DEBUG
     if (loc_debug) { printf("  < (fin)\n");  }
 #endif
 
@@ -813,14 +803,13 @@ int overflow_concordance16(int *r_match, int *r_tot,
     if (ii >= end_noninc_a) { continue; }
 
     anchor_step_a = (int)a_overflow[ii];
-    //knot_a.clear();
+
     do {
       prev_tile_step16_a = a_overflow[ii];
       knot_a.push_back((int)a_overflow[ii+1]);
       knot_a.push_back((int)a_overflow[ii+2]);
 
 #ifdef CONC_DEBUG
-      //DEBUG
       if (loc_debug) {
         printf("  knot_a++ %i %i %i\n",
             (int)a_overflow[ii],
@@ -842,7 +831,6 @@ int overflow_concordance16(int *r_match, int *r_tot,
          (anchor_step_a > anchor_step_b)) {
 
 #ifdef CONC_DEBUG
-    //DEBUG
     if (loc_debug) { printf("  > (fin)\n"); }
 #endif
 
@@ -851,14 +839,13 @@ int overflow_concordance16(int *r_match, int *r_tot,
     if (jj >= end_noninc_b) { continue; }
 
     anchor_step_b = (int)b_overflow[jj];
-    //knot_b.clear();
+
     do {
       prev_tile_step16_b = b_overflow[jj];
       knot_b.push_back((int)b_overflow[jj+1]);
       knot_b.push_back((int)b_overflow[jj+2]);
 
 #ifdef CONC_DEBUG
-      //DEBUG
       if (loc_debug) {
         printf("  knot_b++ %i %i %i\n",
             (int)b_overflow[jj],
@@ -894,7 +881,6 @@ int overflow_concordance16(int *r_match, int *r_tot,
       if (idx == knot_a_size) {
 
 #ifdef CONC_DEBUG
-        //DEBUG
         if (loc_debug) {
           printf("MATCH %i+%i\n", anchor_step_a, (int)knot_a.size()/2);
           printf("  match! ovf16 (c) %i+%i (knot_a.size %i)\n", anchor_step_a, (int)knot_a.size()/2, (int)knot_a.size());
@@ -926,6 +912,44 @@ int overflow_concordance16(int *r_match, int *r_tot,
 // * Count the number of Overflow64 entities in common
 // * Count the number of unmatched cache overflow entities
 //   to both of the Overflow arrays
+//
+// Finding the total and mathced count of elements kept in the
+// 'cache' is relatively straight forward.
+// Any tiles in a cache that that overflow are saved and then
+// compared against the overflow vectors.
+// Finally, the overflow vectors are compared at the end.
+//
+// All high quality tiles have a corresponding low bit set
+// in the `Loq` vector.
+// All spanning tiles, including the anchor tile, have their
+// corresponding bit set in the `Span` vector.
+// The `Canon` bit vector is set high if it's the default
+// tile or if it's a non-anchor spanning tile.  That is:
+//
+// Canon | Span
+// ------------
+//    0      1     -> anchor spanning tile
+//    1      1     -> non-anchor spanning tile
+//
+// That is, anchor tiles are indicated by a 0 Canon bit and
+// 1 spanning bit.
+//
+// `CacheOverflow` is segmented into blocks that can contain up
+// to 8 high quality non-canonical (non-default) tiles.
+// The count can be determined by the number of canonical
+// high quality bits set.
+// The codes for the `CacheOverflow` elements are:
+//
+//   * 0x0              complex
+//   * 0x1 to 0xe       lookup value in tile map (0x1 maps to tile map entry 1 etc.)
+//   * 0xf              overflow
+//
+// Testing `Overflow64` is not implemented.
+//
+// Different tilepaths are padded in each of the arrays with high quality
+// values set to 0 for the tiles that run over.
+// This allows for an easier concordance test as tilepath boundaries
+// don't need special consideration.
 //
 int cgf_hiq_concordance(int *r_match, int *r_tot,
                         cgf_t *a, cgf_t *b,
@@ -964,7 +988,6 @@ int cgf_hiq_concordance(int *r_match, int *r_tot,
            anchor_mask_a, anchor_mask_b,
            non_anchor_span_mask_a, non_anchor_span_mask_b,
            cache_ovf_mask_a, cache_ovf_mask_b;
-           //env_mask_a, env_mask_b;
 
   uint32_t env_mask;
 
@@ -1033,6 +1056,8 @@ int cgf_hiq_concordance(int *r_match, int *r_tot,
   overflow64_a = &(a->Overflow64[0]);
   overflow64_b = &(b->Overflow64[0]);
 
+  // reuse cached tilemap if available
+  //
   if (a->TileMapCacheInit==0) {
     str2tilemap(a->TileMap, &tm);
     tilemap = &tm;
@@ -1074,7 +1099,6 @@ int cgf_hiq_concordance(int *r_match, int *r_tot,
   }
 #endif
 
-  //start_block_tile = start_tile_step / 32;
   start_block_tile = start_tile_step / (8*stride);
   start_block_tile *= 32;
 
@@ -1082,44 +1106,23 @@ int cgf_hiq_concordance(int *r_match, int *r_tot,
 
     // Reset relevant tile path and tile step information
     //
-    //if (ii >= a->StrideOffset[tilepath_idx]) { start_block_tile=0; }
-
-    //env_mask_a = 0xffffffff;
-    //env_mask_b = 0xffffffff;
     env_mask = 0xffffffff;
 
-    // env_mask turns out to be more complicated then anticpated
-    // taking out for now to test.
-    // If testing goes well, we should take out the env_mask altogether
-    //
-
     if (ii==n_q) {
-      //env_mask_a &= (0xffffffff << (start_tile_step%32));
-      //env_mask_b &= (0xffffffff << (start_tile_step%32));
-      //env_mask_a &= (0xffffffff << (start_tile_step%32));
-      //env_mask_b &= (0xffffffff << (start_tile_step%32));
       env_mask &= (0xffffffff << (start_tile_step%32));
     }
 
     if (ii==n_q_end) {
-      //env_mask_a &= (0xffffffff >> (31-(end_tile_step_inc%32)));
-      //env_mask_b &= (0xffffffff >> (31-(end_tile_step_inc%32)));
       env_mask &= (0xffffffff >> (31-(end_tile_step_inc%32)));
     }
 
 #ifdef CONC_DEBUG
-    //DEBUG
-    //
     if (loc_debug) {
       printf("\n\n---\n");
       printf("start_block_tile: %i (%x)\n", start_block_tile, start_block_tile);
       printf("ii %llu (%llu of [%llu,%llu])\n",
           (unsigned long long)ii, (unsigned long long)ii,
           (unsigned long long)n_q, (unsigned long long)n_q_end);
-      //printf("  env_mask_a %08x\n", (unsigned int)env_mask_a);
-      //printf("  env_mask_b %08x\n", (unsigned int)env_mask_b);
-      //printf("  env_mask_a: "); print_bin32(env_mask_a); printf("\n");
-      //printf("  env_mask_b: "); print_bin32(env_mask_b); printf("\n");
       printf("  env_mask: "); print_bin32(env_mask); printf("\n");
     }
 #endif
@@ -1135,7 +1138,6 @@ int cgf_hiq_concordance(int *r_match, int *r_tot,
 
     xspan_mask_a      = ~span_mask_a;
     hiq_mask_a        = ~loq_mask_a;
-    //hiq_mask_a        &= env_mask_a;
 
     // non anchor spanning tiles are indicated with a span bit set and a canon bit set
     // so make sure to account for them to get the actual canononical bits out.
@@ -1163,7 +1165,6 @@ int cgf_hiq_concordance(int *r_match, int *r_tot,
 
     xspan_mask_b      = ~span_mask_b;
     hiq_mask_b        = ~loq_mask_b;
-    //hiq_mask_b        &= env_mask_b;
 
     canon_mask_b      = cache_mask_b & xspan_mask_b & hiq_mask_b;
     anchor_mask_b     = span_mask_b & hiq_mask_b & (~cache_mask_b);
@@ -1174,12 +1175,10 @@ int cgf_hiq_concordance(int *r_match, int *r_tot,
     // The total number of high quality matches is the number of high quality
     // tiles both have in common, excluding the non-anchor high quality tiles
     //
-    //tot += NumberOfSetBits32( hiq_mask_a & hiq_mask_b & (~non_anchor_span_mask_a) & (~non_anchor_span_mask_b) );
     tot += NumberOfSetBits32( env_mask & hiq_mask_a & hiq_mask_b & (~non_anchor_span_mask_a) & (~non_anchor_span_mask_b) );
 
     // Count the number of canonical matches.
     //
-    //match += NumberOfSetBits32( canon_mask_a & canon_mask_b );
     match += NumberOfSetBits32( env_mask & canon_mask_a & canon_mask_b );
 
 #ifdef CONC_DEBUG
@@ -1192,8 +1191,6 @@ int cgf_hiq_concordance(int *r_match, int *r_tot,
       }
     }
 
-    //DEBUG
-    //
     if (loc_debug) {
       printf("  hiq   %08x %08x\n",
           (unsigned int)hiq_mask_a,
@@ -1212,38 +1209,6 @@ int cgf_hiq_concordance(int *r_match, int *r_tot,
       printf("  xspan:  "); print_bin32(xspan_mask_a); printf(" "); print_bin32(xspan_mask_b); printf("\n");
     }
 #endif
-
-    // record the hexit values and tile step positions
-    // for both cgfs
-    //
-    /*
-    for (i=0; i<8; i++) {
-      u32 = ((lo_cache_a & ((uint32_t)0xf<<(4*i))) >> (4*i));
-      hexit_a[i] = (int)u32;
-      hexit_relative_step_a[i] = -1;
-    }
-
-    p = 0;
-    for (i=0; i<32; i++) {
-      if (cache_ovf_mask_a & (1<<i)) {
-        hexit_relative_step_a[p++] = i;
-        if (p>=8) { break; }
-      }
-    }
-    */
-
-    //EXPERIMENTAL
-    /*
-    u32 = (lo_cache_a & ((uint32_t)0xf));           hexit_a[0] = (int)u32;
-    u32 = (lo_cache_a & ((uint32_t)0xf<<4)) >> 4;   hexit_a[1] = (int)u32;
-    u32 = (lo_cache_a & ((uint32_t)0xf<<8)) >> 8;   hexit_a[2] = (int)u32;
-    u32 = (lo_cache_a & ((uint32_t)0xf<<12)) >> 12; hexit_a[3] = (int)u32;
-
-    u32 = (lo_cache_a & ((uint32_t)0xf<<16)) >> 16; hexit_a[4] = (int)u32;
-    u32 = (lo_cache_a & ((uint32_t)0xf<<20)) >> 20; hexit_a[5] = (int)u32;
-    u32 = (lo_cache_a & ((uint32_t)0xf<<24)) >> 24; hexit_a[6] = (int)u32;
-    u32 = (lo_cache_a & ((uint32_t)0xf<<28)) >> 28; hexit_a[7] = (int)u32;
-    */
 
     hexit_a[0] = (lo_cache_a & ((uint32_t)0xf));
     hexit_a[1] = (lo_cache_a & ((uint32_t)0xf<<4)) >> 4;
@@ -1266,18 +1231,6 @@ int cgf_hiq_concordance(int *r_match, int *r_tot,
 
     p=0;
     do {
-
-      /*
-      if (cache_ovf_mask_a & 0x1u) { hexit_relative_step_a[p++] = 0; if (p>=8) { break; } }
-      if (cache_ovf_mask_a & 0x2u) { hexit_relative_step_a[p++] = 1; if (p>=8) { break; } }
-      if (cache_ovf_mask_a & 0x4u) { hexit_relative_step_a[p++] = 2; if (p>=8) { break; } }
-      if (cache_ovf_mask_a & 0x8u) { hexit_relative_step_a[p++] = 3; if (p>=8) { break; } }
-
-      if (cache_ovf_mask_a & 0x10u) { hexit_relative_step_a[p++] = 4; if (p>=8) { break; } }
-      if (cache_ovf_mask_a & 0x20u) { hexit_relative_step_a[p++] = 5; if (p>=8) { break; } }
-      if (cache_ovf_mask_a & 0x40u) { hexit_relative_step_a[p++] = 6; if (p>=8) { break; } }
-      if (cache_ovf_mask_a & 0x80u) { hexit_relative_step_a[p++] = 7; if (p>=8) { break; } }
-      */
 
       if (cache_ovf_mask_a & 0x1u) { hexit_relative_step_a[p++] = 0; }
       if (cache_ovf_mask_a & 0x2u) { hexit_relative_step_a[p++] = 1; }
@@ -1321,38 +1274,6 @@ int cgf_hiq_concordance(int *r_match, int *r_tot,
 
     } while (0);
 
-    //EXPERIMENTAL
-
-
-    /*
-    for (i=0; i<8; i++) {
-      u32 = ((lo_cache_b & ((uint32_t)0xf<<(4*i))) >> (4*i));
-      hexit_b[i] = (int)u32;
-      hexit_relative_step_b[i] = -1;
-    }
-
-    p = 0;
-    for (i=0; i<32; i++) {
-      if (cache_ovf_mask_b & (1<<i)) {
-        hexit_relative_step_b[p++] = i;
-        if (p>=8) { break; }
-      }
-    }
-    */
-
-    //EXPERIMENTAL
-    /*
-    u32 = (lo_cache_b & ((uint32_t)0xf));           hexit_b[0] = (int)u32;
-    u32 = (lo_cache_b & ((uint32_t)0xf<<4)) >> 4;   hexit_b[1] = (int)u32;
-    u32 = (lo_cache_b & ((uint32_t)0xf<<8)) >> 8;   hexit_b[2] = (int)u32;
-    u32 = (lo_cache_b & ((uint32_t)0xf<<12)) >> 12; hexit_b[3] = (int)u32;
-
-    u32 = (lo_cache_b & ((uint32_t)0xf<<16)) >> 16; hexit_b[4] = (int)u32;
-    u32 = (lo_cache_b & ((uint32_t)0xf<<20)) >> 20; hexit_b[5] = (int)u32;
-    u32 = (lo_cache_b & ((uint32_t)0xf<<24)) >> 24; hexit_b[6] = (int)u32;
-    u32 = (lo_cache_b & ((uint32_t)0xf<<28)) >> 28; hexit_b[7] = (int)u32;
-    */
-
     hexit_b[0] = (lo_cache_b & ((uint32_t)0xf));
     hexit_b[1] = (lo_cache_b & ((uint32_t)0xf<<4)) >> 4;
     hexit_b[2] = (lo_cache_b & ((uint32_t)0xf<<8)) >> 8;
@@ -1374,16 +1295,6 @@ int cgf_hiq_concordance(int *r_match, int *r_tot,
 
     p=0;
     do {
-      //if (cache_ovf_mask_b & 0x1u) { hexit_relative_step_b[p++] = 0; if (p>=8) { break; } }
-      //if (cache_ovf_mask_b & 0x2u) { hexit_relative_step_b[p++] = 1; if (p>=8) { break; } }
-      //if (cache_ovf_mask_b & 0x4u) { hexit_relative_step_b[p++] = 2; if (p>=8) { break; } }
-      //if (cache_ovf_mask_b & 0x8u) { hexit_relative_step_b[p++] = 3; if (p>=8) { break; } }
-
-      //if (cache_ovf_mask_b & 0x10u) { hexit_relative_step_b[p++] = 4; if (p>=8) { break; } }
-      //if (cache_ovf_mask_b & 0x20u) { hexit_relative_step_b[p++] = 5; if (p>=8) { break; } }
-      //if (cache_ovf_mask_b & 0x40u) { hexit_relative_step_b[p++] = 6; if (p>=8) { break; } }
-      //if (cache_ovf_mask_b & 0x80u) { hexit_relative_step_b[p++] = 7; if (p>=8) { break; } }
-
       if (cache_ovf_mask_b & 0x1u) { hexit_relative_step_b[p++] = 0; }
       if (cache_ovf_mask_b & 0x2u) { hexit_relative_step_b[p++] = 1; }
       if (cache_ovf_mask_b & 0x4u) { hexit_relative_step_b[p++] = 2; }
@@ -1425,13 +1336,9 @@ int cgf_hiq_concordance(int *r_match, int *r_tot,
       if (cache_ovf_mask_b & 0x80000000u) { hexit_relative_step_b[p++] = 31; if (p>=8) { break; } }
 
     } while (0);
-    //EXPERIMENTAL
-
 
 
 #ifdef CONC_DEBUG
-    //DEBUG
-    //
     if (loc_debug) {
       printf("  hexit:\n");
       for (i=0; i<8; i++) {
@@ -1449,12 +1356,9 @@ int cgf_hiq_concordance(int *r_match, int *r_tot,
     //
     for (i=0, j=0; (i<8) && (j<8); ) {
 
-
       if ((hexit_relative_step_a[i] < 0) || (hexit_relative_step_b[j] < 0))  { break; }
 
 #ifdef CONC_DEBUG
-      //DEBUG
-      //
       if (loc_debug) {
         printf("  a[%i+%i=%i] %i (%i) ... b[%i+%i=%i] %i (%i)\n",
                 start_block_tile, hexit_relative_step_a[i],
@@ -1516,8 +1420,6 @@ int cgf_hiq_concordance(int *r_match, int *r_tot,
           // as it falls outside of the selected window
 
 #ifdef CONC_DEBUG
-          //DEBUG
-          //
           if (loc_debug) {
             if ( ((ii > n_q) && (ii < n_q_end)) ||
                  ( (ii == n_q) && (ii < n_q_end) &&
@@ -1642,8 +1544,6 @@ int cgf_hiq_concordance(int *r_match, int *r_tot,
       }
     }
 
-    //DEBUG
-    //
 #ifdef CONC_DEBUG
     if (loc_debug) { printf("  +match %i, +tot %i\n", match, tot); }
 #endif
@@ -1656,7 +1556,7 @@ int cgf_hiq_concordance(int *r_match, int *r_tot,
     // crossover match calculations.
     //
     // calculate the number matched from the elements in the
-    // cache to the elements in the overflow tables for
+    // cache to the elements in the `Overflow` vectors for
     // dataset a to b and vice versa.
     //
 
@@ -1668,10 +1568,6 @@ int cgf_hiq_concordance(int *r_match, int *r_tot,
     }
 #endif
 
-
-    // If we've crossed a tilepath boundary, check the spillover
-    //
-    //if ( (ii+1) >= a->StrideOffset[tilepath_idx]) {
 
     // If we've crossed a tilepath boundary or we're at the end
     // of our window, check the spillover to overflow matches.
@@ -1689,8 +1585,6 @@ int cgf_hiq_concordance(int *r_match, int *r_tot,
 #endif
 
 #ifdef CONC_DEBUG
-      // DEBUG
-      //
       if (loc_debug) {
         printf("SPILLOVER CALC\n");
         printf("---\n");
@@ -1714,8 +1608,6 @@ int cgf_hiq_concordance(int *r_match, int *r_tot,
         // if the knot passes over the end of the last tilestep in our window, ignore it
         //
         if (ii == n_q_end) {
-          //knot_len = tilemap->offset[spillover_a[i+1]] - tilemap->offset[ spillover_a[i+1]-1 ];
-          //if ((spillover_a[i] + knot_len) > end_tile_step_inc) {
 
           // We only check that the anchor step is in the window range, allowing for
           // matches for knots that begin inside the window but end outside the window.
@@ -1760,7 +1652,6 @@ int cgf_hiq_concordance(int *r_match, int *r_tot,
         // if the knot passes over the end of the last tilestep in our window, ignore it
         //
         if (ii == n_q_end) {
-          //knot_len = tilemap->offset[spillover_b[i+1]] - tilemap->offset[ spillover_b[i+1]-1 ];
 
           // We only check that the anchor step is in the window range, allowing for
           // matches for knots that begin inside the window but end outside the window.
@@ -1830,14 +1721,13 @@ int cgf_hiq_concordance(int *r_match, int *r_tot,
               (int)spillover16_knot_b[i+2]);
         }
         printf("\n");
-
-
-        //DEBUG
-        //
         printf("  non-overflow match: %i (%i)\n", match, tot);
       }
 #endif
 
+      // Find start and end of the tilepath for
+      // each `Overflow` vector.
+      //
 
       iistart=0;
       if (tilepath_idx>0) {
@@ -1848,9 +1738,6 @@ int cgf_hiq_concordance(int *r_match, int *r_tot,
       if (tilepath_idx>0) {
         jjstart=b->OverflowOffset[tilepath_idx-1];
       }
-
-      //end_noninc_a = a->OverflowOffset[end_tile_path_inc];
-      //end_noninc_b = b->OverflowOffset[end_tile_path_inc];
 
       end_noninc_a = a->OverflowOffset[tilepath_idx];
       end_noninc_b = b->OverflowOffset[tilepath_idx];
@@ -1865,21 +1752,14 @@ int cgf_hiq_concordance(int *r_match, int *r_tot,
 
       t_match=0; t_tot=0;
 
-      /*
-      overflow_concordance16(&t_match, &t_tot,
-                             a->Overflow, iistart, end_noninc_a,
-                             spillover16_knot_b, 0, (int)spillover16_knot_b.size(),
-                             cgf_opt);
-                             */
-
       overflow_concordance16_z( &t_match, &t_tot,
                                 &(a->Overflow[0]), iistart, end_noninc_a,
                                 &(spillover16_knot_b[0]), 0, (int)spillover16_knot_b.size(),
                                 cgf_opt);
 
+      // total has already been counted
+      //
       match += t_match;
-
-      //tot += tot;
 
 #ifdef CONC_DEBUG
       if (loc_debug) {
@@ -1897,21 +1777,14 @@ int cgf_hiq_concordance(int *r_match, int *r_tot,
 
       t_match=0; t_tot = 0;
 
-      /*
-      overflow_concordance16(&t_match, &t_tot,
-                             spillover16_knot_a, 0, (int)spillover16_knot_a.size(),
-                             b->Overflow, jjstart, end_noninc_b,
-                             cgf_opt);
-                             */
-
       overflow_concordance16_z( &t_match, &t_tot,
                                 &(spillover16_knot_a[0]), 0, (int)spillover16_knot_a.size(),
                                 &(b->Overflow[0]), jjstart, end_noninc_b,
                                 cgf_opt);
+
+      // total has already been counted
+      //
       match += t_match;
-
-      //tot += tot;
-
 
 #ifdef CONC_DEBUG
       if (loc_debug) {
@@ -2016,19 +1889,11 @@ int cgf_hiq_concordance(int *r_match, int *r_tot,
 
     t_match=0; t_tot=0;
 
-    /*
-    overflow_concordance16( &t_match, &t_tot,
-                            a->Overflow, iistart, end_noninc_a,
-                            b->Overflow, jjstart, end_noninc_b,
-                            cgf_opt);
-                            */
-
     overflow_concordance16_z( &t_match, &t_tot,
                               &(a->Overflow[0]), iistart, end_noninc_a,
                               &(b->Overflow[0]), jjstart, end_noninc_b,
                               cgf_opt);
     match += t_match;
-
 
 #ifdef CONC_DEBUG
     if (loc_debug) {
@@ -2036,26 +1901,16 @@ int cgf_hiq_concordance(int *r_match, int *r_tot,
     }
 #endif
 
-
   }
 
 #ifdef CONC_DEBUG
-  //DEBUG
-  //
   if (loc_debug) { printf("  fin: match %i, tot %i\n", match, tot); }
 #endif
 
+  // all done!
+  //
   *r_match = match;
   *r_tot =tot;
-
-  /*
-  printf("... spillover %i %i\n",
-      (int)spillover_a.capacity(),
-      (int)spillover_b.capacity());
-  printf("... spillover16_knot %i %i\n",
-      (int)spillover16_knot_a.capacity(),
-      (int)spillover16_knot_b.capacity());
-      */
 
   return 0;
 }

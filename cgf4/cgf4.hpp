@@ -305,6 +305,9 @@ typedef struct cgf_opt_type {
 
 } cgf_opt_t;
 
+void cgf_opt_init(cgf_opt_t *opt);
+
+
 
 int str2tilemap(std::string &s, tilemap_t *tilemap);
 
