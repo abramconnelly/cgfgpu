@@ -870,15 +870,132 @@ void cgf_output_band_format2(cgf_t *cgf, int tilepath_idx, FILE *fp, int step_st
 //---
 
 
-void cgf4_print_tilepath_stats(cgf_t *cgf, std::vector<int> &tilepaths) {
-  int i, j, k, idx;
+void cgf4_print_tilepath_stats(cgf_t *cgf, cgf_opt_t *cgf_opt) {
+  int i, j, k, ii, jj;
   int tilepath;
 
-  for (idx=0; idx<tilepaths.size(); idx++) {
-    tilepath = tilepaths[idx];
+  int match=0, tot=0;
+
+  int start_pos, end_pos, n_pos,
+      n_q, n_q_end;
+
+  unsigned char *loq,
+                *span,
+                *canon,
+                *cache_ovf;
+  uint16_t *overflow;
+  uint64_t *overflow64;
+
+  int hexit[8],
+      hexit_relative_step[8];
+
+  uint32_t loq_mask,
+           hiq_mask,
+           span_mask,
+           xspan_mask,
+           cache_mask,
+           lo_cache,
+           canon_mask,
+           anchor_mask,
+           nonnchor_span_mask,
+           cache_ovf_mask;
+
+  uint32_t env_mask;
+
+  uint32_t u32, t_u32;
+  uint16_t prev_tile_step16;
+  int prev_tile_step;
+
+  int tile_step_block_start;
+  int tile_offset;
+
+  int stride;
+  int tilepath_idx;
+
+  int start_block_tile = 0;
+  int idx, z;
+
+  int t_match, t_tot;
+
+  int tot_hiq, tot_hiq_knot, tot_hiq_anchor, tot_span;
+  int n_tilepath=1;
+
+  uint64_t iistart;
+  uint64_t jjstart;
+
+  if (cgf_opt->verbose) {
+    printf("#tilepath,n_tot,n_hiq,n_hiq_knot,n_hiq_anchor\n");
+  }
+
+  loq 				= &(cgf->Loq[0]);
+  span 				= &(cgf->Span[0]);
+  canon 			= &(cgf->Canon[0]);
+  cache_ovf 	= &(cgf->CacheOverflow[0]);
+  overflow 		= &(cgf->Overflow[0]);
+  overflow64 	= &(cgf->Overflow64[0]);
+
+
+  stride = cgf->Stride;
+
+  if (cgf_opt->endtilepath>=0) {
+    n_tilepath = cgf_opt->endtilepath - cgf_opt->tilepath + 1;
+  }
+
+  for (tilepath = cgf_opt->tilepath; tilepath < (cgf_opt->tilepath + n_tilepath); tilepath++) {
+
+		start_pos = 0;
+		if (tilepath>0) {
+			start_pos = 8 * stride * (cgf->StrideOffset[tilepath-1]);
+		}
+
+		end_pos = 0;
+		if (tilepath>0) {
+			end_pos = 8 * stride * (cgf->StrideOffset[tilepath-1]);
+		}
+		end_pos += cgf->TileStepCount[tilepath];
+
+		n_q = start_pos / (8*stride);
+		n_q_end = end_pos / (8*stride);
+
+    tot_hiq = 0;
+    tot_hiq_knot = 0;
+    tot_hiq_anchor = 0;
+    tot_span=0;
+
+    for (ii=n_q; ii<=n_q_end; ii++) {
+
+			// collect the uint32_t bit vectors into a convenient form
+			//
+			loq_mask    = loq[4*ii] | (loq[4*ii+1]<<8) | (loq[4*ii+2]<<16) | (loq[4*ii+3]<<24);
+			span_mask   = span[4*ii] | (span[4*ii+1]<<8) | (span[4*ii+2]<<16) | (span[4*ii+3]<<24);
+			cache_mask  = canon[4*ii] | (canon[4*ii+1]<<8) | (canon[4*ii+2]<<16) | (canon[4*ii+3]<<24);
+			lo_cache    = cache_ovf[4*ii] | (cache_ovf[4*ii+1]<<8) | (cache_ovf[4*ii+2]<<16) | (cache_ovf[4*ii+3]<<24);
+
+			xspan_mask      = ~span_mask;
+			hiq_mask        = ~loq_mask;
+
+			// non anchor spanning tiles are indicated with a span bit set and a canon bit set
+			// so make sure to account for them to get the actual canononical bits out.
+			//
+			canon_mask      = cache_mask & xspan_mask & hiq_mask;
+
+			// anchor tile bit vector for convenience.
+			//
+			anchor_mask     = hiq_mask & (~cache_mask) & span_mask;
+
+
+      tot_hiq += NumberOfSetBits32(hiq_mask);
+      tot_hiq_knot += NumberOfSetBits32(anchor_mask) + NumberOfSetBits32(hiq_mask & xspan_mask);
+      tot_hiq_anchor += NumberOfSetBits32(anchor_mask);
+
+      tot_span += NumberOfSetBits32(span_mask);
+
+    }
+
+    printf("%i,%i,%i,%i,%i\n", tilepath, (int)cgf->TileStepCount[tilepath], tot_hiq, tot_hiq_knot, tot_hiq_anchor);
 
 
 
   }
-}
 
+}

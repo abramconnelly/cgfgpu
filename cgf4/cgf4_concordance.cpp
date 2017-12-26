@@ -89,6 +89,378 @@ static void print_bin32(uint32_t u32) {
 
 }
 
+int overflow_concordance16_z(int *r_match, int *r_tot,
+                             uint16_t *a_overflow, int start_a, int end_noninc_a,
+                             uint16_t *b_overflow, int start_b, int end_noninc_b,
+                             cgf_opt_t *cgf_opt) {
+
+  int anchor_step_a, anchor_step_b;
+  int ii, jj, idx;
+  int knot_a_start, knot_a_n,
+      knot_b_start, knot_b_n;
+  uint16_t prev_tile_step16_a, prev_tile_step16_b;
+  int match=0, tot=0;
+
+  int loc_debug = 0;
+
+  if (cgf_opt && (cgf_opt->verbose)) { loc_debug=1; }
+
+  if ( ((end_noninc_b-start_b)==0) ||
+       ((end_noninc_a-start_a)==0)) {
+    return 0;
+  }
+
+  ii = start_a;
+  jj = start_b;
+
+  anchor_step_a = (int)a_overflow[ii];
+  anchor_step_b = (int)b_overflow[jj];
+
+  //DEBUG
+  if (loc_debug) {
+    printf("# ovf_conc16 %i %i\n", anchor_step_a, anchor_step_b);
+  }
+
+  knot_a_start = ii;
+  knot_a_n=0;
+  do {
+    prev_tile_step16_a = a_overflow[ii];
+    knot_a_n += 3;
+
+    //DEBUG
+    if (loc_debug) {
+      printf("  a %i %i %i\n", a_overflow[ii], a_overflow[ii+1], a_overflow[ii+2]);
+    }
+
+    ii+=3;
+  } while ((ii<end_noninc_a) &&
+           ((a_overflow[ii] - prev_tile_step16_a) <= 1) &&
+           ((a_overflow[ii+1] == OVF16_MAX) || (a_overflow[ii+2] == OVF16_MAX)) );
+
+  knot_b_start = jj;
+  knot_b_n = 0;
+  do {
+    prev_tile_step16_b = b_overflow[jj];
+    knot_b_n += 3;
+
+    //DEBUG
+    if (loc_debug) {
+      printf("  b %i %i %i\n", b_overflow[jj], b_overflow[jj+1], b_overflow[jj+2]);
+    }
+    //printf("    %i
+
+    if (loc_debug) {
+      printf("  knot_b++ %i %i %i\n",
+          (int)prev_tile_step16_b,
+          (int)b_overflow[jj+1],
+          (int)b_overflow[jj+2]);
+    }
+
+    jj+=3;
+  } while ((jj<end_noninc_b) &&
+           ((b_overflow[jj] - prev_tile_step16_b) <= 1) &&
+           ((b_overflow[jj+1] == OVF16_MAX) || (b_overflow[jj+2] == OVF16_MAX)) );
+
+  while ((ii<end_noninc_a) && (jj<end_noninc_b)) {
+
+    //DEBUG
+    if (loc_debug) {
+      printf("ii %i (/%i), jj %i (/%i)\n",
+          (int)ii, (int)end_noninc_a,
+          (int)jj, (int)end_noninc_b);
+      printf("  anchor a:%i (s%i), b:%i (s%i)\n",
+          anchor_step_a, knot_a_n,
+          anchor_step_b, knot_b_n);
+
+      printf("  knot_a (step %i):", anchor_step_a);
+      for (idx=0; idx<knot_a_n; idx++) { printf(" %i", a_overflow[knot_a_start+idx]); }
+      printf("\n");
+      printf("  knot_b (step %i):", anchor_step_b);
+      for (idx=0; idx<knot_b_n; idx++) { printf(" %i", b_overflow[knot_b_start+idx]); }
+      printf("\n");
+      fflush(stdout);
+    }
+
+    if (anchor_step_a == anchor_step_b) {
+
+      tot++;
+
+      //DEBUG
+      if (loc_debug) { printf("  ==\n"); }
+
+      if ( (knot_a_n>0) &&
+           (knot_a_n == knot_b_n) &&
+           (a_overflow[knot_a_start+1] != OVF16_MAX) &&
+           (a_overflow[knot_a_start+2] != OVF16_MAX) &&
+           (b_overflow[knot_b_start+1] != OVF16_MAX) &&
+           (b_overflow[knot_b_start+2] != OVF16_MAX) ) {
+        for (idx = 0; idx<knot_a_n; idx++) {
+          if (a_overflow[knot_a_start + idx] != b_overflow[knot_b_start + idx]) { break; }
+        }
+        if (idx == knot_a_n) {
+
+          //DEBUG
+          //printf("MATCH %i+%i\n", anchor_step_a, (int)knot_a.size()/2);
+          if (loc_debug) {
+            printf("MATCH %i+%i (match count %i)\n", anchor_step_a, (int)knot_a_n/3, match);
+            printf("  match! ovf16_z (a) %i+%i (knot_a_n %i)\n", anchor_step_a, (int)knot_a_n/3, (int)knot_a_n);
+            fflush(stdout);
+          }
+
+          match++;
+        }
+      }
+
+      knot_a_start = ii;
+      knot_a_n=0;
+
+      knot_b_start = jj;
+      knot_b_n=0;
+
+      if (ii >= end_noninc_a) { continue; }
+      if (jj >= end_noninc_b) { continue; }
+
+      anchor_step_a = (int)a_overflow[ii];
+      do {
+        prev_tile_step16_a = a_overflow[ii];
+        knot_a_n+=3;
+
+        //DEBUG
+        if (loc_debug) {
+          printf("  knot_a++ %i %i %i\n",
+              (int)a_overflow[ii],
+              (int)a_overflow[ii+1],
+              (int)a_overflow[ii+2]);
+        }
+
+        ii+=3;
+      } while ((ii<end_noninc_a) &&
+               ((a_overflow[ii] - prev_tile_step16_a) <= 1) &&
+               ((a_overflow[ii+1] == OVF16_MAX) || (a_overflow[ii+2] == OVF16_MAX)) );
+
+      anchor_step_b = (int)b_overflow[jj];
+      //knot_b.clear();
+      do {
+        prev_tile_step16_b = b_overflow[jj];
+        knot_b_n+=3;
+
+        //DEBUG
+        if (loc_debug) {
+          printf("  knot_b++ %i %i %i\n",
+              (int)b_overflow[jj],
+              (int)b_overflow[jj+1],
+              (int)b_overflow[jj+2]);
+        }
+
+
+        jj+=3;
+      } while ((jj<end_noninc_b) &&
+               ((b_overflow[jj] - prev_tile_step16_b) <= 1) &&
+               ((b_overflow[jj+1] == OVF16_MAX) || (b_overflow[jj+2] == OVF16_MAX)) );
+
+      continue;
+    }
+
+    if (anchor_step_a < anchor_step_b) {
+
+      //DEBUG
+      if (loc_debug) { printf("  <\n");  }
+
+      knot_a_start = ii;
+      knot_a_n=0;
+
+      if (ii >= end_noninc_a) { continue; }
+
+      anchor_step_a = (int)a_overflow[ii];
+      do {
+        prev_tile_step16_a = a_overflow[ii];
+        knot_a_n+=3;
+
+        //DEBUG
+        if (loc_debug) {
+          printf("  knot_a++ %i %i %i\n",
+              (int)a_overflow[ii],
+              (int)a_overflow[ii+1],
+              (int)a_overflow[ii+2]);
+        }
+
+        ii+=3;
+      } while ((ii<end_noninc_a) &&
+               ((a_overflow[ii] - prev_tile_step16_a) <= 1) &&
+               ((a_overflow[ii+1] == OVF16_MAX) || (a_overflow[ii+2] == OVF16_MAX)) );
+
+      continue;
+    }
+
+    if (anchor_step_a > anchor_step_b) {
+
+      //DEBUG
+      if (loc_debug) { printf("  >\n"); }
+
+      knot_b_start = jj;
+      knot_b_n=0;
+
+      if (jj >= end_noninc_b) { continue; }
+
+      anchor_step_b = (int)b_overflow[jj];
+      do {
+        prev_tile_step16_b = b_overflow[jj];
+        knot_b_n+=3;
+
+        //DEBUG
+        if (loc_debug) {
+          printf("  knot_b++ %i %i %i\n",
+              (int)b_overflow[jj],
+              (int)b_overflow[jj+1],
+              (int)b_overflow[jj+2]);
+        }
+
+
+        jj+=3;
+      } while ((jj<end_noninc_b) &&
+               ((b_overflow[jj] - prev_tile_step16_b) <= 1) &&
+               ((b_overflow[jj+1] == OVF16_MAX) || (b_overflow[jj+2] == OVF16_MAX)) );
+
+      continue;
+    }
+
+
+    if (anchor_step_a == anchor_step_b) {
+
+      if ( (knot_a_n>0) &&
+           (knot_a_n == knot_b_n) &&
+           (a_overflow[knot_a_start + 1] != OVF16_MAX) &&
+           (a_overflow[knot_a_start + 2] != OVF16_MAX) &&
+           (b_overflow[knot_b_start + 1] != OVF16_MAX) &&
+           (b_overflow[knot_b_start + 2] != OVF16_MAX) ) {
+        for (idx = 0; idx<knot_a_n; idx++) {
+          if (a_overflow[knot_a_start + idx] != b_overflow[knot_b_start + idx]) { break; }
+        }
+        if (idx == knot_a_n) {
+
+          if (loc_debug) {
+            printf("MATCH %i+%i\n", anchor_step_a, (int)knot_a_n/3);
+            printf("  match! ovf16 (b) %i+%i (knot_a.size %i)\n", anchor_step_a, (int)knot_a_n/3, (int)knot_a_n);
+            //printf("  match! ovf16 (b..) %i+%i (knot_b.size %i)\n", anchor_step_b, (int)knot_b.size()/2, (int)knot_b.size());
+          }
+
+          match++;
+        }
+      }
+    }
+
+  }
+
+  // end conditions
+  //
+
+  // Skip ahead to the appropriate place in the 'a'
+  // structure, recording the last knot to be considered
+  //
+  while ((ii<end_noninc_a) &&
+         (anchor_step_a < anchor_step_b)) {
+
+    //DEBUG
+    if (loc_debug) { printf("  < (fin)\n");  }
+
+    knot_a_start = ii;
+    knot_a_n = 0;
+
+    if (ii >= end_noninc_a) { continue; }
+
+    anchor_step_a = (int)a_overflow[ii];
+    do {
+      prev_tile_step16_a = a_overflow[ii];
+      knot_a_n+=3;
+
+      //DEBUG
+      if (loc_debug) {
+        printf("  knot_a++ %i %i %i\n",
+            (int)a_overflow[ii],
+            (int)a_overflow[ii+1],
+            (int)a_overflow[ii+2]);
+      }
+
+      ii+=3;
+    } while ((ii<end_noninc_a) &&
+             ((a_overflow[ii] - prev_tile_step16_a) <= 1) &&
+             ((a_overflow[ii+1] == OVF16_MAX) || (a_overflow[ii+2] == OVF16_MAX)) );
+  }
+
+  // Skip ahead to the appropriate place in the 'b'
+  // structure, recording the last knot to be considered
+  //
+  while ((jj<end_noninc_b) &&
+         (anchor_step_a > anchor_step_b)) {
+
+    //DEBUG
+    if (loc_debug) { printf("  > (fin)\n"); }
+
+    knot_b_start = jj;
+    knot_b_n = 0;
+
+    if (jj >= end_noninc_b) { continue; }
+
+    anchor_step_b = (int)b_overflow[jj];
+    do {
+      prev_tile_step16_b = b_overflow[jj];
+      knot_b_n+=3;
+
+      //DEBUG
+      if (loc_debug) {
+        printf("  knot_b++ %i %i %i\n",
+            (int)b_overflow[jj],
+            (int)b_overflow[jj+1],
+            (int)b_overflow[jj+2]);
+      }
+
+
+      jj+=3;
+    } while ((jj<end_noninc_b) &&
+             ((b_overflow[jj] - prev_tile_step16_b) <= 1) &&
+             ((b_overflow[jj+1] == OVF16_MAX) || (b_overflow[jj+2] == OVF16_MAX)) );
+  }
+
+
+
+
+  if (anchor_step_a == anchor_step_b) {
+
+    if ( (knot_a_n>0) &&
+         (knot_a_n == knot_b_n) &&
+         (a_overflow[knot_a_start + 1] != OVF16_MAX) &&
+         (a_overflow[knot_a_start + 2] != OVF16_MAX) &&
+         (b_overflow[knot_b_start + 1] != OVF16_MAX) &&
+         (b_overflow[knot_b_start + 2] != OVF16_MAX) ) {
+      for (idx = 0; idx<knot_a_n; idx++) {
+        if (a_overflow[knot_a_start + idx] != b_overflow[knot_b_start + idx]) { break; }
+      }
+
+      if (idx == knot_a_n) {
+
+        //DEBUG
+        if (loc_debug) {
+          printf("MATCH %i+%i\n", anchor_step_a, (int)knot_a_n/3);
+          printf("  match! ovf16 (c) %i+%i (knot_a.size %i)\n", anchor_step_a, (int)knot_a_n/3, (int)knot_a_n);
+          printf("  match! ovf16 (c..) %i+%i (knot_b.size %i)\n", anchor_step_b, (int)knot_b_n/3, (int)knot_b_n);
+          fflush(stdout);
+        }
+
+        match++;
+      }
+    }
+  }
+
+
+
+  if (r_match) { *r_match = match; }
+  if (r_tot) { *r_tot = tot; }
+
+  return match;
+
+
+}
+
 int overflow_concordance16(int *r_match, int *r_tot,
                            std::vector<uint16_t> &a_overflow, int start_a, int end_noninc_a,
                            std::vector<uint16_t> &b_overflow, int start_b, int end_noninc_b,
@@ -100,6 +472,11 @@ int overflow_concordance16(int *r_match, int *r_tot,
   int match=0, tot=0;
 
   int loc_debug = 0;
+
+  size_t knot_a_size=0, knot_b_size=0;
+
+  knot_a.reserve(27);
+  knot_b.reserve(27);
 
   if (cgf_opt && (cgf_opt->verbose)) { loc_debug=1; }
 
@@ -186,14 +563,18 @@ int overflow_concordance16(int *r_match, int *r_tot,
       //DEBUG
       if (loc_debug) { printf("  ==\n"); }
 
-      if ( (knot_a.size()>0) &&
-           (knot_a.size() == knot_b.size()) &&
+      knot_a_size = knot_a.size();
+
+      if ( (knot_a_size>0) &&
+           (knot_a_size == knot_b.size()) &&
            (knot_a[0] != OVF16_MAX) &&
-           (knot_b[0] != OVF16_MAX) ) {
-        for (idx = 0; idx<knot_a.size(); idx++) {
+           (knot_a[1] != OVF16_MAX) &&
+           (knot_b[0] != OVF16_MAX) &&
+           (knot_b[1] != OVF16_MAX) ) {
+        for (idx = 0; idx<knot_a_size; idx++) {
           if (knot_a[idx] != knot_b[idx]) { break; }
         }
-        if (idx == knot_a.size()) {
+        if (idx == knot_a_size) {
 
           //DEBUG
           //printf("MATCH %i+%i\n", anchor_step_a, (int)knot_a.size()/2);
@@ -214,7 +595,7 @@ int overflow_concordance16(int *r_match, int *r_tot,
       if (jj >= end_noninc_b) { continue; }
 
       anchor_step_a = (int)a_overflow[ii];
-      knot_a.clear();
+      //knot_a.clear();
       do {
         prev_tile_step16_a = a_overflow[ii];
         knot_a.push_back((int)a_overflow[ii+1]);
@@ -234,7 +615,7 @@ int overflow_concordance16(int *r_match, int *r_tot,
                ((a_overflow[ii+1] == OVF16_MAX) || (a_overflow[ii+2] == OVF16_MAX)) );
 
       anchor_step_b = (int)b_overflow[jj];
-      knot_b.clear();
+      //knot_b.clear();
       do {
         prev_tile_step16_b = b_overflow[jj];
         knot_b.push_back((int)b_overflow[jj+1]);
@@ -267,7 +648,7 @@ int overflow_concordance16(int *r_match, int *r_tot,
       if (ii >= end_noninc_a) { continue; }
 
       anchor_step_a = (int)a_overflow[ii];
-      knot_a.clear();
+      //knot_a.clear();
       do {
         prev_tile_step16_a = a_overflow[ii];
         knot_a.push_back((int)a_overflow[ii+1]);
@@ -299,7 +680,7 @@ int overflow_concordance16(int *r_match, int *r_tot,
       if (jj >= end_noninc_b) { continue; }
 
       anchor_step_b = (int)b_overflow[jj];
-      knot_b.clear();
+      //knot_b.clear();
       do {
         prev_tile_step16_b = b_overflow[jj];
         knot_b.push_back((int)b_overflow[jj+1]);
@@ -322,15 +703,21 @@ int overflow_concordance16(int *r_match, int *r_tot,
       continue;
     }
 
+
     if (anchor_step_a == anchor_step_b) {
-      if ( (knot_a.size()>0) &&
-           (knot_a.size() == knot_b.size()) &&
+
+      knot_a_size = knot_a.size();
+
+      if ( (knot_a_size>0) &&
+           (knot_a_size == knot_b.size()) &&
            (knot_a[0] != OVF16_MAX) &&
-           (knot_b[0] != OVF16_MAX) ) {
-        for (idx = 0; idx<knot_a.size(); idx++) {
+           (knot_a[1] != OVF16_MAX) &&
+           (knot_b[0] != OVF16_MAX) &&
+           (knot_b[1] != OVF16_MAX) ) {
+        for (idx = 0; idx<knot_a_size; idx++) {
           if (knot_a[idx] != knot_b[idx]) { break; }
         }
-        if (idx == knot_a.size()) {
+        if (idx == knot_a_size) {
 
           if (loc_debug) {
             printf("MATCH %i+%i\n", anchor_step_a, (int)knot_a.size()/2);
@@ -362,7 +749,7 @@ int overflow_concordance16(int *r_match, int *r_tot,
     if (ii >= end_noninc_a) { continue; }
 
     anchor_step_a = (int)a_overflow[ii];
-    knot_a.clear();
+    //knot_a.clear();
     do {
       prev_tile_step16_a = a_overflow[ii];
       knot_a.push_back((int)a_overflow[ii+1]);
@@ -396,7 +783,7 @@ int overflow_concordance16(int *r_match, int *r_tot,
     if (jj >= end_noninc_b) { continue; }
 
     anchor_step_b = (int)b_overflow[jj];
-    knot_b.clear();
+    //knot_b.clear();
     do {
       prev_tile_step16_b = b_overflow[jj];
       knot_b.push_back((int)b_overflow[jj+1]);
@@ -421,18 +808,23 @@ int overflow_concordance16(int *r_match, int *r_tot,
 
 
   if (anchor_step_a == anchor_step_b) {
-    if ( (knot_a.size()>0) &&
-         (knot_a.size() == knot_b.size()) &&
+
+    knot_a_size = knot_a.size();
+
+    if ( (knot_a_size>0) &&
+         (knot_a_size == knot_b.size()) &&
          (knot_a[0] != OVF16_MAX) &&
-         (knot_b[0] != OVF16_MAX) ) {
-      for (idx = 0; idx<knot_a.size(); idx++) {
+         (knot_a[1] != OVF16_MAX) &&
+         (knot_b[0] != OVF16_MAX) &&
+         (knot_b[1] != OVF16_MAX) ) {
+      for (idx = 0; idx<knot_a_size; idx++) {
 
         //if (loc_debug) { printf(">>>> %i %i\n", knot_a[idx], knot_b[idx]); }
 
         if (knot_a[idx] != knot_b[idx]) { break; }
       }
 
-      if (idx == knot_a.size()) {
+      if (idx == knot_a_size) {
 
         //DEBUG
         if (loc_debug) {
@@ -1166,10 +1558,18 @@ int cgf_hiq_concordance(int *r_match, int *r_tot,
       }
 
       t_match=0; t_tot=0;
+
+      /*
       overflow_concordance16(&t_match, &t_tot,
                              a->Overflow, iistart, end_noninc_a,
                              spillover16_knot_b, 0, (int)spillover16_knot_b.size(),
                              cgf_opt);
+                             */
+
+      overflow_concordance16_z( &t_match, &t_tot,
+                                &(a->Overflow[0]), iistart, end_noninc_a,
+                                &(spillover16_knot_b[0]), 0, (int)spillover16_knot_b.size(),
+                                cgf_opt);
       match += t_match;
       //tot += tot;
 
@@ -1186,12 +1586,22 @@ int cgf_hiq_concordance(int *r_match, int *r_tot,
       }
 
       t_match=0; t_tot = 0;
+
+      /*
       overflow_concordance16(&t_match, &t_tot,
                              spillover16_knot_a, 0, (int)spillover16_knot_a.size(),
                              b->Overflow, jjstart, end_noninc_b,
                              cgf_opt);
+                             */
+
+      overflow_concordance16_z( &t_match, &t_tot,
+                                &(spillover16_knot_a[0]), 0, (int)spillover16_knot_a.size(),
+                                &(b->Overflow[0]), jjstart, end_noninc_b,
+                                cgf_opt);
+
       match += t_match;
       //tot += tot;
+
 
       if (loc_debug) {
         printf("spillover16_knot_a to b->Overflow match %i\n", t_match);
@@ -1285,10 +1695,19 @@ int cgf_hiq_concordance(int *r_match, int *r_tot,
     }
 
     t_match=0; t_tot=0;
+
+    /*
     overflow_concordance16( &t_match, &t_tot,
                             a->Overflow, iistart, end_noninc_a,
                             b->Overflow, jjstart, end_noninc_b,
                             cgf_opt);
+                            */
+
+    overflow_concordance16_z( &t_match, &t_tot,
+                              &(a->Overflow[0]), iistart, end_noninc_a,
+                              &(b->Overflow[0]), jjstart, end_noninc_b,
+                              cgf_opt);
+
     match += t_match;
 
     if (loc_debug) {

@@ -29,6 +29,7 @@ static struct option long_options[] = {
   {"endtilestep",         required_argument,  NULL, 'S'},
 
   {"all-pairs",           no_argument,        NULL, '\0'},
+  {"show-stats",          no_argument,        NULL, '\0'},
 
   {"input",               required_argument,  NULL, 'i'},
   {"output",              required_argument,  NULL, 'o'},
@@ -81,6 +82,8 @@ void init_cgf_opt(cgf_opt_t *opt) {
   opt->fill_level=0xff;
 
   opt->all_pairs=0;
+
+  opt->print_stats=0;
 }
 
 void show_help() {
@@ -145,6 +148,9 @@ int main(int argc, char **argv) {
     case 0:
       if (strcmp(long_options[option_index].name, "all-pairs")==0) {
         cgf_opt.all_pairs=1;
+      }
+      else if (strcmp(long_options[option_index].name, "show-stats")==0) {
+        cgf_opt.print_stats=1;
       }
       else {
         fprintf(stderr, "invalid option, exiting\n");
@@ -483,7 +489,13 @@ int main(int argc, char **argv) {
     if (ifp!=stdin) { fclose(ifp); }
     ifp = NULL;
 
-    printf("sanity: %i\n", cgf_sanity(cgf));
+
+    if (cgf_opt.print_stats) {
+      cgf4_print_tilepath_stats(cgf, &cgf_opt);
+    }
+    else {
+      printf("sanity: %i\n", cgf_sanity(cgf));
+    }
 
   }
 
@@ -624,11 +636,21 @@ int main(int argc, char **argv) {
     str2tilemap(cgf->TileMap, &tm);
   }
 
+  else if (cgf_opt.print_stats) {
+
+    if (cgf_opt.ifn.size()==0) { printf("provide input CGF file\n"); cleanup_err(); }
+    if ((ifp=fopen(cgf_opt.ifn.c_str(), "r"))==NULL) { perror(cgf_opt.ifn.c_str()); cleanup_err(); }
+
+    cgf = cgf_read(ifp);
+    if (!cgf) {
+      printf("CGF read error.  Is %s a valid CGFv3 file?\n", cgf_opt.ifn.c_str());
+      cleanup_fail();
+    }
+
+    cgf4_print_tilepath_stats(cgf, &cgf_opt);
+  }
+
 cgf_cleanup:
-  //if (cgf_opt.ifn) { free(cgf_opt.ifn); }
-  //if (cgf_opt.ofn) { free(cgf_opt.ofn); }
-  //if (cgf_opt.band_ifn) { free(cgf_opt.band_ifn); }
-  //if (cgf_opt.tilemap_fn) { free(cgf_opt.tilemap_fn); }
   if (ifp && (ifp!=stdin)) { fclose(ifp); }
   if (ofp && (ofp!=stdout)) { fclose(ofp); }
   if (cgf_opt.band_ifp && (cgf_opt.band_ifp!=stdin)) { fclose(cgf_opt.band_ifp); }
