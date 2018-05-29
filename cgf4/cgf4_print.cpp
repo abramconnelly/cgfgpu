@@ -156,7 +156,7 @@ void cgf_print(cgf_t *cgf) {
         printf("[%i+%i]",
             (int)tp->LoqTileNocStartHet[j],
             (int)tp->LoqTileNocLenHet[j]);
-      } 
+      }
       prev_sum = (int)tp->LoqTileNocSumHet[2*i];
 
       for (j=prev_sum; j<tp->LoqTileNocSumHet[2*i+1]; j++) {
@@ -168,7 +168,7 @@ void cgf_print(cgf_t *cgf) {
 
         if (j >= (int)tp->LoqTileNocLenHet.size()) {
           printf("SANITY: j (%i) >= LoqTileNocLenHet (%i)\n", j, (int)tp->LoqTileNocLenHet.size());
-        } 
+        }
 
         printf("[%i+%i]",
             (int)tp->LoqTileNocStartHet[j],
@@ -998,4 +998,76 @@ void cgf4_print_tilepath_stats(cgf_t *cgf, cgf_opt_t *cgf_opt) {
 
   }
 
+}
+
+//---
+
+void cgf4_print_header_json(cgf_t *cgf, FILE *ofp) {
+  int i, j, prv;
+
+  if (cgf->TileMapCacheInit==0) {
+    str2tilemap(cgf->TileMap, &(cgf->TileMapCache));
+    cgf->TileMapCacheInit=1;
+  }
+
+  fprintf(ofp, "{\n");
+  fprintf(ofp, "  \"Magic\":\"");
+  for (i=0; i<6; i++) {
+    if (cgf->Magic[i] == '"') {
+      fprintf(ofp, "\\");
+    }
+    fprintf(ofp, "%c", cgf->Magic[i]);
+  }
+  fprintf(ofp, "\",\n");
+
+  fprintf(ofp, "  \"Version\":\"%s\",\n", cgf->CGFVersion.c_str());
+  fprintf(ofp, "  \"LibraryVersion\":\"%s\",\n", cgf->LibraryVersion.c_str());
+  fprintf(ofp, "  \"TilePathCount\":%llu,\n", (long long unsigned int)cgf->TilePathCount);
+  fprintf(ofp, "  \"Stride\":%llu,\n", (long long unsigned int)cgf->Stride);
+  fprintf(ofp, "  \"TileMap\":[");
+
+  prv=0;
+  for (i=0; i<cgf->TileMapCache.offset.size(); i++) {
+    if ((i%8)==0) {
+      if (i>0) { fprintf(ofp, ","); }
+      fprintf(ofp, "\n    ");
+    }
+    else {
+      fprintf(ofp, ", ");
+    }
+
+    fprintf(ofp, "[[");
+    for (j=prv; j<cgf->TileMapCache.offset[i]; j++) {
+      if (j>prv) { fprintf(ofp, ","); }
+      fprintf(ofp, "%i", cgf->TileMapCache.variant[0][j]);
+    }
+    fprintf(ofp, "],[");
+    for (j=prv; j<cgf->TileMapCache.offset[i]; j++) {
+      if (j>prv) { fprintf(ofp, ","); }
+      fprintf(ofp, "%i", cgf->TileMapCache.variant[1][j]);
+    }
+    fprintf(ofp, "]]");
+
+    prv = cgf->TileMapCache.offset[i];
+
+  }
+  fprintf(ofp, "  ],\n");
+
+  fprintf(ofp, "  \"TileStepCount\":[");
+  for (i=0; i<cgf->TileStepCount.size(); i++) {
+    if ((i%16)==0) {
+      if (i>0) { fprintf(ofp, ","); }
+      fprintf(ofp, "\n    ");
+    }
+    else {
+      fprintf(ofp, ",");
+    }
+
+    fprintf(ofp, "%llu", (unsigned long long int)cgf->TileStepCount[i]);
+
+  }
+  fprintf(ofp, "]\n");
+
+
+  fprintf(ofp, "}\n");
 }

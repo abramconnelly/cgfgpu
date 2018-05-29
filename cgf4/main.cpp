@@ -59,6 +59,7 @@ void show_help() {
   printf("  [-s|--tilestep tilestep]    tilestep (start)\n");
   printf("  [-S|--endtilestep tilestep] end tilestep\n");
   printf("  [--all-pairs]               all pairs concordance\n");
+  printf("  [--show-stats]              show stats\n");
 
 
   printf("  [-i|--input ifn]            input file (CGF)\n");
@@ -637,13 +638,15 @@ int main(int argc, char **argv) {
     if (cgf_opt.ifn.size()==0) { printf("provide input CGF file\n"); cleanup_err(); }
     if ((ifp=fopen(cgf_opt.ifn.c_str(), "r"))==NULL) { perror(cgf_opt.ifn.c_str()); cleanup_err(); }
 
-    cgf = cgf_read(ifp);
+    //cgf = cgf_read(ifp);
+    cgf = cgf_read_hiq(ifp);
     if (!cgf) {
       printf("CGF read error.  Is %s a valid CGFv3 file?\n", cgf_opt.ifn.c_str());
       cleanup_fail();
     }
 
-    str2tilemap(cgf->TileMap, &tm);
+    str2tilemap(cgf->TileMap, &(cgf->TileMapCache));
+    cgf4_print_header_json(cgf, stdout);
   }
 
   else if (cgf_opt.print_stats) {
