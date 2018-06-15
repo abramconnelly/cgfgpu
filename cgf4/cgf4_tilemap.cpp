@@ -125,7 +125,7 @@ int str2tilemap(std::string &s, tilemap_t *tilemap) {
 
     // read tile variant
     //
-    while ((idx<s.size()) && 
+    while ((idx<s.size()) &&
            ( ((s[idx] >= '0') && (s[idx] <='9')) ||
              ((s[idx] >= 'a') && (s[idx] <='f')) ||
              ((s[idx] >= 'A') && (s[idx] <='F')) ) ) {
@@ -147,7 +147,7 @@ int str2tilemap(std::string &s, tilemap_t *tilemap) {
     //
     if ((idx<s.size()) && (s[idx]=='+')) {
       idx++;
-      while ((idx<s.size()) && 
+      while ((idx<s.size()) &&
              ( ((s[idx] >= '0') && (s[idx] <='9')) ||
                ((s[idx] >= 'a') && (s[idx] <='f')) ||
                ((s[idx] >= 'A') && (s[idx] <='F')) ) ) {

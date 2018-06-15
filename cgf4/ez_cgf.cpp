@@ -59,14 +59,11 @@ void ez_to_tilepath(tilepath_t *tilepath, tilepath_ez_t *ez) {
 
   ez_create_enc_vector(tilepath->LoqTileStepHom, ez->loq_info_pos_hom);
 
-  // We encode a nocall variant as a positive large number (vlc can't encode
-  // negative numbers).
+  // We encode a nocall 'spanning' variant as a positive
+  // large number (vlc can't encode negative numbers).
   //
-
-  //ez_create_vlc_vector(tilepath->LoqTileVariantHom, ez->loq_info_variant_hom);
   for (i=0; i<ez->loq_info_variant_hom.size(); i++) {
     val = ez->loq_info_variant_hom[i];
-    //if (val<0) { variant_v.push_back(1<<30); }
     if (val<0) { variant_v.push_back(SPAN_SDSL_ENC_VAL); }
     else { variant_v.push_back(val); }
   }
@@ -88,29 +85,24 @@ void ez_to_tilepath(tilepath_t *tilepath, tilepath_ez_t *ez) {
   ez_create_vlc_vector(tilepath->LoqTileNocStartHom, start_v);
   ez_create_vlc_vector(tilepath->LoqTileNocLenHom, len_v);
 
-
   // Encoded Loq Het information
   //
-
   start_v.clear();
   len_v.clear();
   sn.clear();
   variant_v.clear();
 
   ez_create_enc_vector(tilepath->LoqTileStepHet, ez->loq_info_pos_het);
-  // We encode a nocall variant as a positive large number (vlc can't encode
-  // negative numbers).
-  //
 
-  //ez_create_vlc_vector(tilepath->LoqTileVariantHet, ez->loq_info_variant_het);
+  // We encode a nocall 'spanning' variant as a positive
+  // large number (vlc can't encode negative numbers).
+  //
   for (i=0; i<ez->loq_info_variant_het.size(); i++) {
     val = ez->loq_info_variant_het[i];
-    //if (val<0) { variant_v.push_back(1<<30); }
     if (val<0) { variant_v.push_back(SPAN_SDSL_ENC_VAL); }
     else { variant_v.push_back(val); }
   }
   ez_create_vlc_vector(tilepath->LoqTileVariantHet, variant_v);
-
 
   // Sum vector holds sum of the interleaved vector.  Since we split it out,
   // we divide each entry by two to get the entry sum.
@@ -128,142 +120,18 @@ void ez_to_tilepath(tilepath_t *tilepath, tilepath_ez_t *ez) {
   ez_create_vlc_vector(tilepath->LoqTileNocStartHet, start_v);
   ez_create_vlc_vector(tilepath->LoqTileNocLenHet, len_v);
 
-  tilepath->LoqTileStepHomSize 			= (uint64_t)(sdsl::size_in_bytes(tilepath->LoqTileStepHom));
-  tilepath->LoqTileVariantHomSize 	= (uint64_t)(sdsl::size_in_bytes(tilepath->LoqTileVariantHom));
-  tilepath->LoqTileNocSumHomSize 		= (uint64_t)(sdsl::size_in_bytes(tilepath->LoqTileNocSumHom));
-  tilepath->LoqTileNocStartHomSize 	= (uint64_t)(sdsl::size_in_bytes(tilepath->LoqTileNocStartHom));
-  tilepath->LoqTileNocLenHomSize 		= (uint64_t)(sdsl::size_in_bytes(tilepath->LoqTileNocLenHom));
+  tilepath->LoqTileStepHomSize       = (uint64_t)(sdsl::size_in_bytes(tilepath->LoqTileStepHom));
+  tilepath->LoqTileVariantHomSize   = (uint64_t)(sdsl::size_in_bytes(tilepath->LoqTileVariantHom));
+  tilepath->LoqTileNocSumHomSize     = (uint64_t)(sdsl::size_in_bytes(tilepath->LoqTileNocSumHom));
+  tilepath->LoqTileNocStartHomSize   = (uint64_t)(sdsl::size_in_bytes(tilepath->LoqTileNocStartHom));
+  tilepath->LoqTileNocLenHomSize     = (uint64_t)(sdsl::size_in_bytes(tilepath->LoqTileNocLenHom));
 
-  tilepath->LoqTileStepHetSize 			= (uint64_t)(sdsl::size_in_bytes(tilepath->LoqTileStepHet));
-  tilepath->LoqTileVariantHetSize 	= (uint64_t)(sdsl::size_in_bytes(tilepath->LoqTileVariantHet));
-  tilepath->LoqTileNocSumHetSize 		= (uint64_t)(sdsl::size_in_bytes(tilepath->LoqTileNocSumHet));
-  tilepath->LoqTileNocStartHetSize 	= (uint64_t)(sdsl::size_in_bytes(tilepath->LoqTileNocStartHet));
-  tilepath->LoqTileNocLenHetSize 		= (uint64_t)(sdsl::size_in_bytes(tilepath->LoqTileNocLenHet));
-
+  tilepath->LoqTileStepHetSize       = (uint64_t)(sdsl::size_in_bytes(tilepath->LoqTileStepHet));
+  tilepath->LoqTileVariantHetSize   = (uint64_t)(sdsl::size_in_bytes(tilepath->LoqTileVariantHet));
+  tilepath->LoqTileNocSumHetSize     = (uint64_t)(sdsl::size_in_bytes(tilepath->LoqTileNocSumHet));
+  tilepath->LoqTileNocStartHetSize   = (uint64_t)(sdsl::size_in_bytes(tilepath->LoqTileNocStartHet));
+  tilepath->LoqTileNocLenHetSize     = (uint64_t)(sdsl::size_in_bytes(tilepath->LoqTileNocLenHet));
 }
-
-
-/*
-int cgft_read_band_tilepath(cgf_t *cgf, tilepath_t *tilepath, FILE *fp) {
-  int i, j, k, ch=1;
-  int read_line = 0;
-  int step=0;
-
-  std::vector<std::string> names;
-  std::string s;
-
-  std::vector<tilepath_vec_t> ds;
-  tilepath_vec_t cur_ds;
-
-  int pcount=0;
-  int state_mod = 0;
-  int cur_allele = 0;
-  int loq_flag = 0;
-  int cur_tilestep = 0;
-
-  const char *fn_tilemap = "default_tile_map_v0.1.0.txt";
-  std::map< std::string, int > tilemap;
-  std::map< std::string, int >::iterator ent;
-
-  std::vector<int> loq_vec;
-
-  load_tilemap(cgf->TileMap, tilemap);
-
-  s.clear();
-  while (ch!=EOF) {
-    ch = fgetc(fp);
-
-    if (ch==EOF) { break; }
-    if (ch=='\n') {
-      state_mod = (state_mod+1)%4;
-      pcount=0;
-      cur_tilestep=0;
-
-      loq_vec.clear();
-
-      if (state_mod==0) {
-        cur_tilestep=0;
-        ds.push_back(cur_ds);
-        cur_ds.allele[0].clear();
-        cur_ds.allele[1].clear();
-        cur_ds.loq_flag[0].clear();
-        cur_ds.loq_flag[1].clear();
-        cur_ds.loq_info[0].clear();
-        cur_ds.loq_info[1].clear();
-        cur_ds.name.clear();
-      }
-
-      continue;
-    }
-    if (ch=='[') {
-
-      loq_flag=0;
-      if (state_mod>=2) {
-
-        s.clear();
-        loq_vec.clear();
-
-        pcount++;
-        while (pcount>1) {
-          cur_allele = state_mod%2;
-          ch = fgetc(fp);
-
-          if (ch==EOF) {
-            printf("ERROR: premature eof\n");
-            return -1;
-          }
-
-          if ((ch==' ') || (ch==']')) {
-            if (s.size() > 0) {
-              loq_vec.push_back(atoi(s.c_str()));
-            }
-            s.clear();
-          }
-
-
-          if (ch==']') {
-            cur_ds.loq_flag[cur_allele].push_back(loq_flag);
-            pcount--;
-
-            cur_ds.loq_info[cur_allele].push_back(loq_vec);
-            loq_vec.clear();
-            cur_tilestep++;
-            continue;
-          }
-          if (ch=='[') { pcount++; continue; }
-          if (ch==' ') { continue; }
-
-          s += ch;
-          loq_flag=1;
-        }
-      }
-
-      continue;
-    }
-    if ((ch==' ') || (ch==']')) {
-
-      if (s.size() == 0) { continue; }
-
-      if (state_mod==0) {
-        cur_ds.allele[0].push_back(atoi(s.c_str()));
-      } else if (state_mod==1) {
-        cur_ds.allele[1].push_back(atoi(s.c_str()));
-      }
-      s.clear();
-      continue;
-    }
-    s += ch;
-
-  }
-
-  tilepath_ez_t ez;
-  ez_create(ez, ds[0], tilemap);
-
-  ez_to_tilepath(tilepath, &ez);
-
-  return 0;
-}
-*/
 
 
 // convert output of band cgb file (ascii text) to
@@ -293,8 +161,6 @@ int cgft_read_band_tilepath(cgf_t *cgf, tilepath_t *tilepath, FILE *fp) {
 // We should try and use as much as the old infrastructure/format as possible.
 //
 
-int TILEPATH;
-
 void ez_print(tilepath_ez_t &ez) {
   int s=0;
   int i, j;
@@ -309,7 +175,6 @@ void ez_print(tilepath_ez_t &ez) {
   printf("ez.cache(%i):", (int)(ez.cache.size()));
   for (i=0; i<ez.cache.size(); i++) {
     printf("\n");
-    //if ((i>0) && ((i%8)==0)) { printf("\n"); }
 
     u64 = ez.cache[i];
 
@@ -322,7 +187,8 @@ void ez_print(tilepath_ez_t &ez) {
     }
     if (count>8) { count=8; }
 
-    //force
+    // force
+    //
     count=8;
 
     printf(" [");
@@ -593,10 +459,6 @@ void ez_create(tilepath_ez_t &ez, tilepath_vec_t &tilepath, std::map< std::strin
     }
   }
 
-  //DEBUG
-  //for (i=0; i<n; i++) { printf("[%i] %i anchor:%i (loq:%i)\n", i, span_flag[i], anchor_flag[i], loq_flag[i]); }
-
-
   // -----------------
   //
   // loq_bv
@@ -631,17 +493,6 @@ void ez_create(tilepath_ez_t &ez, tilepath_vec_t &tilepath, std::map< std::strin
         } else {
           is_het = 1;
         }
-
-        //DEBUG
-        /*
-        printf(">> tilestep[%i] loq(%i,%i) is_het %i, var(%i,%i)\n",
-            tilestep,
-            tilepath.loq_flag[0][tilestep],
-            tilepath.loq_flag[1][tilestep],
-            is_het,
-            tilepath.allele[0][tilestep],
-            tilepath.allele[1][tilestep]);
-            */
 
         if (!is_het) {
 
@@ -998,9 +849,6 @@ void ez_create(tilepath_ez_t &ez, tilepath_vec_t &tilepath, std::map< std::strin
         mk_tilemap_key(str, tilepath, tilestep, k);
         tilemap_it = tilemap.find(str);
 
-        //DEBUG
-        //fprintf(stderr, "key: %s\n", str.c_str()); fflush(stderr);
-
         int cf = 0;
         if (tilemap_it != tilemap.end()) {
           // found in tilemap
@@ -1106,9 +954,6 @@ void ez_create(tilepath_ez_t &ez, tilepath_vec_t &tilepath, std::map< std::strin
 
         tilemap_it = tilemap.find(str);
 
-        //DEBUG
-        //fprintf(stderr, "key+: %s\n", str.c_str());
-
         if (tilemap_it != tilemap.end()) {
           if (tilemap_it->second<15) {
             hexit_vec.push_back( tilemap_it->second );
@@ -1213,17 +1058,11 @@ void ez_create(tilepath_ez_t &ez, tilepath_vec_t &tilepath, std::map< std::strin
     for (i=0; i<mm; i++) {
 
       if (hexit_vec[i] < 0) {
-        //t32 = 0xf;
-        //t32 <<= 4*i;
-        //u32 |= t32;
         u32 |= (((uint32_t)0xf)<<(4*i));
 
         if (loc_debug) { printf("hexit ovf: %016x\n", u32); }
       }
       else {
-        //t32 = (((uint32_t)hexit_vec[i])&0xf);
-        //t32 <<= 4*i;
-        //u32 |= t32;
         u32 |= (((uint32_t)hexit_vec[i])&0xf)<<(4*i);
 
         if (loc_debug) { printf("hexit add: %016x\n", u32); }
@@ -1267,14 +1106,6 @@ void ez_create(tilepath_ez_t &ez, tilepath_vec_t &tilepath, std::map< std::strin
       if (loc_debug) {
         printf("  remain i%i (tilestep %i)\n", i, tilestep);
       }
-
-      // If it's loq or spanning, skip (0 bit val)
-      //
-      //if (loq_flag[tilestep] ||
-      //    (span_flag[tilestep] != tilestep)) {
-      //  tilestep++;
-      //  continue;
-      //}
 
       // If it's loq, don't set canon bit and move on...
       //
@@ -1337,8 +1168,9 @@ void ez_create(tilepath_ez_t &ez, tilepath_vec_t &tilepath, std::map< std::strin
 
         int cf = 0;
         if (tilemap_it != tilemap.end()) {
-          // found in tilemap
 
+          // found in tilemap
+          //
           if (tilemap_it->second<15) {
             cf = 1;
             hexit_vec.push_back( tilemap_it->second );
@@ -1347,7 +1179,6 @@ void ez_create(tilepath_ez_t &ez, tilepath_vec_t &tilepath, std::map< std::strin
               printf("    hexit_vec: %i (len %i)\n", tilemap_it->second, (int)hexit_vec.size());
             }
 
-            //if (hexit_vec.size()>=8) { cf = 0; }
             if (hexit_vec.size()>8) { cf = 0; }
 
             if (loc_debug) {
@@ -1384,7 +1215,6 @@ void ez_create(tilepath_ez_t &ez, tilepath_vec_t &tilepath, std::map< std::strin
             ez.ovf_vec.push_back((int16_t)tilestep+j);
             ez.ovf_vec.push_back((int16_t)tilepath.allele[0][tilestep+j]);
             ez.ovf_vec.push_back((int16_t)tilepath.allele[1][tilestep+j]);
-            //tilestep++;
 
             if (loc_debug) {
               printf("    ovf: tilestep %i -> %i, %i\n",
@@ -1603,92 +1433,6 @@ void print_bgf(tilepath_vec_t &tv) {
       printf(" ]");
     }
     printf("]\n");
-  }
-
-}
-
-void print_tilepath_vecs(std::vector<tilepath_vec_t> &tv) {
-  size_t n, tilepath_n;
-  int i, j, pos;
-  int max_val;
-  int len;
-
-  int print_header = 1;
-  int hotpos;
-
-  n = tv.size();
-  tilepath_n = tv[0].allele[0].size();
-
-  for (pos=0; pos<tilepath_n; pos++) {
-
-    max_val = 0;
-    for (i=0; i<n; i++) {
-
-      if ((tv[i].loq_flag[0][pos]==0) &&
-          (max_val < tv[i].allele[0][pos])) {
-        max_val = tv[i].allele[0][pos];
-      }
-
-      if ((tv[i].loq_flag[1][pos]==0) &&
-          (max_val < tv[i].allele[1][pos])) {
-        max_val = tv[i].allele[1][pos];
-      }
-
-    }
-
-    len = (int)(max_val)+1;
-
-    for (hotpos=0; hotpos<len; hotpos++) {
-      for (i=0; i<n; i++) {
-
-        if (i>0) { printf(" "); }
-        else if (print_header) {
-          //printf("pos%03x.%03x.u | ", pos, hotpos);
-          if (TILEPATH>=0) {
-            printf("%04x.%03x(%03x)u ", TILEPATH, pos, hotpos);
-          } else {
-            printf("pos%03x(%03x)u ", pos, hotpos);
-          }
-        }
-
-        if (tv[i].loq_flag[0][pos]==0) {
-          printf("%i", (tv[i].allele[0][pos] == hotpos) ? 1 : 0);
-        } else {
-          printf("NaN");
-        }
-
-      }
-
-      printf("\n");
-
-    }
-
-    for (hotpos=0; hotpos<len; hotpos++) {
-
-      for (i=0; i<n; i++) {
-
-        if (i>0) { printf(" "); }
-        else if (print_header) {
-          //printf("pos%03x.%03x.v | ", pos, hotpos);
-          if (TILEPATH>=0) {
-            printf("%04x.%03x(%03x)v ", TILEPATH, pos, hotpos);
-          } else {
-            printf("pos%03x(%03x)v ", pos, hotpos);
-          }
-        }
-
-        if (tv[i].loq_flag[1][pos]==0) {
-          printf("%i", (tv[i].allele[1][pos] == hotpos) ? 1 : 0);
-        } else {
-          printf("NaN");
-        }
-
-      }
-
-      printf("\n");
-    }
-
-    //printf("\n");
   }
 
 }

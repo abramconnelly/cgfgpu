@@ -56,9 +56,6 @@ void ez_add_tilepath(cgf_t *cgf, int tilepath_idx, tilepath_ez_t &ez) {
 
   sz = (ez.N + 7)/8;
 
-  //DEBUG
-  //printf("ez_add_tilepath: N %i, sz %i\n", (int)ez.N, (int)sz);
-
   for (i64=0; i64<sz; i64++) {
     cgf->Loq.push_back(ez.loq_bv[i64]);
     cgf->Span.push_back(ez.span_bv[i64]);
@@ -66,8 +63,6 @@ void ez_add_tilepath(cgf_t *cgf, int tilepath_idx, tilepath_ez_t &ez) {
 
   if ((sz%4)!=0) {
     for (i64=0; i64<(4-(sz%4)); i64++) {
-      //cgf->Loq.push_back(ez.loq_bv[i64]);
-      //cgf->Span.push_back(ez.span_bv[i64]);
       cgf->Loq.push_back(0xff);
       cgf->Span.push_back(0x00);
     }
@@ -89,32 +84,9 @@ void ez_add_tilepath(cgf_t *cgf, int tilepath_idx, tilepath_ez_t &ez) {
 
   }
 
-  //DEBUG
-//  printf("---------------------------\n\n");
-//  printf("%i %i %i %i\n",
-//      (int)cgf->Loq.size(),
-//      (int)cgf->Span.size(),
-//      (int)cgf->Canon.size(),
-//      (int)cgf->CacheOverflow.size());
-//
-//  //printf(" %02x %02x %02x %02x | %02x %02x %02x %02x | %02x %02x %02x %02x | %02x %02x %02x %02x",
-//  printf("         .     Loq     |     Span    |    Canon    |    Ovf    \n");
-//  sz = cgf->Loq.size();
-//  for (i64=0; i64<sz; i64+=4) {
-//    printf("[%08llx]", (unsigned long long int)i64);
-//    printf(" %02x %02x %02x %02x | %02x %02x %02x %02x | %02x %02x %02x %02x | %02x %02x %02x %02x\n",
-//        cgf->Loq[i64+0], cgf->Loq[i64+1], cgf->Loq[i64+2], cgf->Loq[i64+3],
-//        cgf->Span[i64+0], cgf->Span[i64+1], cgf->Span[i64+2], cgf->Span[i64+3],
-//        cgf->Canon[i64+0], cgf->Canon[i64+1], cgf->Canon[i64+2], cgf->Canon[i64+3],
-//        cgf->CacheOverflow[i64+0], cgf->CacheOverflow[i64+1], cgf->CacheOverflow[i64+2], cgf->CacheOverflow[i64+3]);
-//  }
-//  printf("\n\n");
-
   cgf->TileStepCount.push_back((uint64_t)ez.N);
 
   sz64=(ez.N+31)/32;
-  //if ((sz%32)!=0) { sz64+=32-(sz%32); }
-  //sz64=32*sz;
   if (cgf->StrideOffset.size()>0) {
     sz = cgf->StrideOffset[ cgf->StrideOffset.size()-1 ];
     sz64 += (uint64_t)sz;
@@ -123,9 +95,7 @@ void ez_add_tilepath(cgf_t *cgf, int tilepath_idx, tilepath_ez_t &ez) {
 
 
   if (ez.ovf_vec.size()>0) {
-    //cgf->Overflow.resize(ez.ovf_vec.size());
     for (i=0; i<ez.ovf_vec.size(); i++) {
-      //cgf->Overflow[i] = ez.ovf_vec[i];
       cgf->Overflow.push_back(ez.ovf_vec[i]);
     }
 
@@ -140,9 +110,7 @@ void ez_add_tilepath(cgf_t *cgf, int tilepath_idx, tilepath_ez_t &ez) {
   }
 
   if (ez.ovf64_vec.size()>0) {
-    //cgf->Overflow64.resize(ez.ovf64_vec.size());
     for (i=0; i<ez.ovf64_vec.size(); i++) {
-      //cgf->Overflow64[i] = ez.ovf64_vec[i];
       cgf->Overflow64.push_back(ez.ovf64_vec[i]);
     }
     sz64=0;
@@ -188,20 +156,12 @@ void ez_add_tilepath(cgf_t *cgf, int tilepath_idx, tilepath_ez_t &ez) {
   }
   cgf->TilePathStructOffset.push_back(sz64);
 
-
   cgf->TilePathCount++;
 }
 
-int cgf_read_band_tilepath(cgf_t *cgf, int idx, FILE *fp) {
+int cgf_read_band(FILE *fp, tilepath_vec_t &ds) {
   int i, j, k, ch=1;
-  int read_line = 0;
-  int step=0;
-
-  std::vector<std::string> names;
   std::string s;
-
-  std::vector<tilepath_vec_t> ds;
-  tilepath_vec_t cur_ds;
 
   int pcount=0;
   int state_mod = 0;
@@ -209,13 +169,7 @@ int cgf_read_band_tilepath(cgf_t *cgf, int idx, FILE *fp) {
   int loq_flag = 0;
   int cur_tilestep = 0;
 
-  const char *fn_tilemap = "default_tile_map_v0.1.0.txt";
-  std::map< std::string, int > tilemap;
-  std::map< std::string, int >::iterator ent;
-
   std::vector<int> loq_vec;
-
-  load_tilemap(cgf->TileMap, tilemap);
 
   s.clear();
   while (ch!=EOF) {
@@ -224,22 +178,11 @@ int cgf_read_band_tilepath(cgf_t *cgf, int idx, FILE *fp) {
     if (ch==EOF) { break; }
     if (ch=='\n') {
       state_mod = (state_mod+1)%4;
+      if (state_mod==0) { return 0; }
+
       pcount=0;
       cur_tilestep=0;
-
       loq_vec.clear();
-
-      if (state_mod==0) {
-        cur_tilestep=0;
-        ds.push_back(cur_ds);
-        cur_ds.allele[0].clear();
-        cur_ds.allele[1].clear();
-        cur_ds.loq_flag[0].clear();
-        cur_ds.loq_flag[1].clear();
-        cur_ds.loq_info[0].clear();
-        cur_ds.loq_info[1].clear();
-        cur_ds.name.clear();
-      }
 
       continue;
     }
@@ -256,10 +199,9 @@ int cgf_read_band_tilepath(cgf_t *cgf, int idx, FILE *fp) {
           cur_allele = state_mod%2;
           ch = fgetc(fp);
 
-          if (ch==EOF) {
-            printf("ERROR: premature eof\n");
-            return -1;
-          }
+          // premature EOF
+          //
+          if (ch==EOF) { return -1; }
 
           if ((ch==' ') || (ch==']')) {
             if (s.size() > 0) {
@@ -269,10 +211,10 @@ int cgf_read_band_tilepath(cgf_t *cgf, int idx, FILE *fp) {
           }
 
           if (ch==']') {
-            cur_ds.loq_flag[cur_allele].push_back(loq_flag);
+            ds.loq_flag[cur_allele].push_back(loq_flag);
             pcount--;
 
-            cur_ds.loq_info[cur_allele].push_back(loq_vec);
+            ds.loq_info[cur_allele].push_back(loq_vec);
             loq_vec.clear();
             cur_tilestep++;
             continue;
@@ -292,9 +234,9 @@ int cgf_read_band_tilepath(cgf_t *cgf, int idx, FILE *fp) {
       if (s.size() == 0) { continue; }
 
       if (state_mod==0) {
-        cur_ds.allele[0].push_back(atoi(s.c_str()));
+        ds.allele[0].push_back(atoi(s.c_str()));
       } else if (state_mod==1) {
-        cur_ds.allele[1].push_back(atoi(s.c_str()));
+        ds.allele[1].push_back(atoi(s.c_str()));
       }
       s.clear();
       continue;
@@ -303,17 +245,198 @@ int cgf_read_band_tilepath(cgf_t *cgf, int idx, FILE *fp) {
 
   }
 
+  return 0;
+}
+
+int cgf_read_band_tilepath(FILE *fp, cgf_t *cgf, int idx) {
+  int r;
+  tilepath_vec_t ds;
   tilepath_ez_t ez;
-  ez_create(ez, ds[0], tilemap);
+  std::map< std::string, int > tilemap;
+  std::map< std::string, int >::iterator ent;
 
-  //ez_print(ez);
+  //---
+  //
 
+  load_tilemap(cgf->TileMap, tilemap);
+
+  r = cgf_read_band(fp, ds);
+  if (r<0) { return r; }
+
+  ez_create(ez, ds, tilemap);
   ez_add_tilepath(cgf, idx, ez);
 
-  //printf("\n\n");
-  //gcgf_print(cgf);
+  return 0;
+}
 
+static int _invert_noc(tilepath_vec_t &tpv) {
+  int i, j, knot_len, is_hiq=0;
+  size_t n;
+
+
+  n = tpv.allele[0].size();
+  for (i=0; i<n; i++) {
+    tpv.loq_flag[0][i] = 1;
+    tpv.loq_flag[1][i] = 1;
+  }
+
+  for (i=0; i<n; i+=knot_len) {
+    is_hiq=0;
+    knot_len=0;
+    do {
+      if ((tpv.loq_info[0][i+knot_len].size() > 0) ||
+          (tpv.loq_info[1][i+knot_len].size() > 0)) {
+        is_hiq=1;
+      }
+      knot_len++;
+    } while ( ((i+knot_len)<n) &&
+              ( (tpv.allele[0][i+knot_len] < 0) ||
+                (tpv.allele[1][i+knot_len] < 0) ) );
+
+    if (is_hiq) {
+      for (j=0; j<knot_len; j++) { tpv.loq_flag[0][i+j] = 0; }
+      for (j=0; j<knot_len; j++) { tpv.loq_flag[1][i+j] = 0; }
+    }
+  }
+
+  for (i=0; i<n; i++) {
+    tpv.loq_info[0][i].clear();
+    tpv.loq_info[1][i].clear();
+
+    if (tpv.loq_flag[0][i]==1) {
+      tpv.loq_info[0][i].push_back(0);
+      tpv.loq_info[0][i].push_back(0);
+      tpv.loq_info[1][i].push_back(0);
+      tpv.loq_info[1][i].push_back(0);
+    }
+  }
 
   return 0;
+}
 
+
+int cgf_read_genotype_band_tilepath(FILE *fp, cgf_t *cgf, int idx) {
+  int i, j, r;
+  tilepath_vec_t ds, orig_ds;
+  tilepath_ez_t ez;
+  std::map< std::string, int > tilemap;
+  std::map< std::string, int >::iterator ent;
+  tilepath_t *tp;
+
+  std::vector< int > empty_vec;
+
+  std::vector< uint32_t > gt_pos_info;
+  uint32_t u32;
+
+  uint8_t *u8v;
+
+  //---
+  //
+
+  load_tilemap(cgf->TileMap, tilemap);
+
+  r = cgf_read_band(fp, ds);
+  if (r<0) { return r; }
+
+  // 'reverse' band
+  //
+  orig_ds = ds;
+  _invert_noc(ds);
+
+  ez_create(ez, ds, tilemap);
+  ez_add_tilepath(cgf, idx, ez);
+
+  // clear all data from the tilepath (low quality)
+  // structure
+  //
+  tp = &(cgf->TilePath[ cgf->TilePath.size()-1 ]);
+
+  //--------
+  //--------
+  //--------
+
+  // ecnode genotype position information
+  // as tile step and offset integers
+  //
+  tp->ExtraDataSize = 0;
+  tp->ExtraData.clear();
+
+  tp->ExtraData.push_back('g');
+  tp->ExtraData.push_back('t');
+  tp->ExtraData.push_back('0');
+  tp->ExtraData.push_back('0');
+
+  for (i=0; i<orig_ds.loq_info[0].size(); i++) {
+    for (j=0; j<orig_ds.loq_info[0][i].size(); j+=2) {
+      gt_pos_info.push_back((uint32_t)i);
+
+      if (orig_ds.loq_info[0][i][j] < 0) {
+        gt_pos_info.push_back((uint32_t)SPAN_SDSL_ENC_VAL);
+      }
+      else {
+        gt_pos_info.push_back((uint32_t)orig_ds.loq_info[0][i][j]);
+      }
+
+    }
+  }
+
+  u32 = (uint32_t)gt_pos_info.size()/2;
+  u8v = (uint8_t *)(&u32);
+  tp->ExtraData.push_back(u8v[0]);
+  tp->ExtraData.push_back(u8v[1]);
+  tp->ExtraData.push_back(u8v[2]);
+  tp->ExtraData.push_back(u8v[3]);
+
+  for (i=0; i<gt_pos_info.size(); i++) {
+
+    u32 = gt_pos_info[i];
+    u8v = (uint8_t *)(&u32);
+    for (j=0; j<4; j++) { tp->ExtraData.push_back(u8v[j]); }
+
+  }
+
+  tp->ExtraDataSize = tp->ExtraData.size();
+
+  //--------
+  //--------
+  //--------
+
+
+  tp->LoqTileStepHomSize      = 0;
+  tp->LoqTileVariantHomSize   = 0;
+  tp->LoqTileNocSumHomSize    = 0;
+  tp->LoqTileNocStartHomSize  = 0;
+  tp->LoqTileNocLenHomSize    = 0;
+
+  tp->LoqTileStepHetSize      = 0;
+  tp->LoqTileVariantHetSize   = 0;
+  tp->LoqTileNocSumHetSize    = 0;
+  tp->LoqTileNocStartHetSize  = 0;
+  tp->LoqTileNocLenHetSize    = 0;
+
+  ez_create_enc_vector(tp->LoqTileStepHom,      empty_vec);
+  ez_create_vlc_vector(tp->LoqTileVariantHom,   empty_vec);
+  ez_create_enc_vector(tp->LoqTileNocSumHom,    empty_vec);
+  ez_create_vlc_vector(tp->LoqTileNocStartHom,  empty_vec);
+  ez_create_vlc_vector(tp->LoqTileNocLenHom,    empty_vec);
+
+  ez_create_enc_vector(tp->LoqTileStepHet,      empty_vec);
+  ez_create_vlc_vector(tp->LoqTileVariantHet,   empty_vec);
+  ez_create_enc_vector(tp->LoqTileNocSumHet,    empty_vec);
+  ez_create_vlc_vector(tp->LoqTileNocStartHet,  empty_vec);
+  ez_create_vlc_vector(tp->LoqTileNocLenHet,    empty_vec);
+
+  tp->LoqTileStepHomSize      = (uint64_t)(sdsl::size_in_bytes(tp->LoqTileStepHom));
+  tp->LoqTileVariantHomSize   = (uint64_t)(sdsl::size_in_bytes(tp->LoqTileVariantHom));
+  tp->LoqTileNocSumHomSize    = (uint64_t)(sdsl::size_in_bytes(tp->LoqTileNocSumHom));
+  tp->LoqTileNocStartHomSize  = (uint64_t)(sdsl::size_in_bytes(tp->LoqTileNocStartHom));
+  tp->LoqTileNocLenHomSize    = (uint64_t)(sdsl::size_in_bytes(tp->LoqTileNocLenHom));
+
+  tp->LoqTileStepHetSize      = (uint64_t)(sdsl::size_in_bytes(tp->LoqTileStepHet));
+  tp->LoqTileVariantHetSize   = (uint64_t)(sdsl::size_in_bytes(tp->LoqTileVariantHet));
+  tp->LoqTileNocSumHetSize    = (uint64_t)(sdsl::size_in_bytes(tp->LoqTileNocSumHet));
+  tp->LoqTileNocStartHetSize  = (uint64_t)(sdsl::size_in_bytes(tp->LoqTileNocStartHet));
+  tp->LoqTileNocLenHetSize    = (uint64_t)(sdsl::size_in_bytes(tp->LoqTileNocLenHet));
+
+  return 0;
 }

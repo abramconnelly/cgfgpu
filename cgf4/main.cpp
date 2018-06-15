@@ -1,9 +1,9 @@
 #include "cgf4.hpp"
 
-#define cleanup_err() do { ret=1; show_help(); goto cgf_cleanup; } while (0);
+#define cleanup_err() do { ret=1; show_help(stderr); goto cgf_cleanup; } while (0);
 #define cleanup_fail() do { ret=-2; goto cgf_cleanup; } while (0);
-#define cleanup_ok() do { ret=0; show_help(); goto cgf_cleanup; } while (0);
-#define cleanup() do { show_help(); goto cgf_cleanup; } while (0);
+#define cleanup_ok() do { ret=0; show_help(stderr); goto cgf_cleanup; } while (0);
+#define cleanup() do { show_help(stderr); goto cgf_cleanup; } while (0);
 
 
 static struct option long_options[] = {
@@ -28,6 +28,7 @@ static struct option long_options[] = {
   {"tilestep",            required_argument,  NULL, 's'},
   {"endtilestep",         required_argument,  NULL, 'S'},
 
+  {"genotype",            no_argument,        NULL, '\0'},
   {"all-pairs",           no_argument,        NULL, '\0'},
   {"show-stats",          no_argument,        NULL, '\0'},
   {"repeat",              required_argument,  NULL, '\0'},
@@ -40,46 +41,47 @@ static struct option long_options[] = {
   {0,0,0,0}
 };
 
-void show_help() {
-  printf("CGF Tool.  A tool used to inspect and edit Compact Genome Format (CGF) v4 files.\n");
-  printf("Version: %s\n", CGF_VERSION);
-  printf("\n");
-  printf("usage:\n  cgf4 [-H] [-b tilepath] [-e tilepath] [-i ifn] [-o ofn] [-h] [-v] [-V] [ifn]\n");
-  printf("\n");
-  printf("  [-H|--header]               show header\n");
-  printf("  [-C|--create-container]     create empty container\n");
-  printf("  [-I|--info]                 print basic information about CGF file\n");
-  printf("  [-b|--band tilepath]        output band for tilepath\n");
-  printf("  [-F fill_level]             bit vector for band fillin (1 canon, 2 cache, 4 ovf, 8 noc, 0xff default)\n");
-  printf("  [-m|--match]                run concordance on a pair of cgf files (must provide two cgf files)\n");
-  printf("  [-e|--encode tilepath]      input tilepath band and add it to file, overwriting if it already exists\n");
+void show_help(FILE *fp) {
+  fprintf(fp, "CGF Tool.  A tool used to inspect and edit Compact Genome Format (CGF) v4 files.\n");
+  fprintf(fp, "Version: %s\n", CGF_VERSION);
+  fprintf(fp, "\n");
+  fprintf(fp, "usage:\n  cgf4 [-H] [-b tilepath] [-e tilepath] [-i ifn] [-o ofn] [-h] [-v] [-V] [ifn]\n");
+  fprintf(fp, "\n");
+  fprintf(fp, "  [-H|--header]               show header\n");
+  fprintf(fp, "  [-C|--create-container]     create empty container\n");
+  fprintf(fp, "  [-I|--info]                 print basic information about CGF file\n");
+  fprintf(fp, "  [-b|--band tilepath]        output band for tilepath\n");
+  fprintf(fp, "  [-F fill_level]             bit vector for band fillin (1 canon, 2 cache, 4 ovf, 8 noc, 0xff default)\n");
+  fprintf(fp, "  [-m|--match]                run concordance on a pair of cgf files (must provide two cgf files)\n");
+  fprintf(fp, "  [-e|--encode tilepath]      input tilepath band and add it to file, overwriting if it already exists\n");
 
-  printf("  [-p|--tilepath tilepath]    tilepath (start)\n");
-  printf("  [-P|--endtilepath tilepath] end tilepath\n");
-  printf("  [-s|--tilestep tilestep]    tilestep (start)\n");
-  printf("  [-S|--endtilestep tilestep] end tilestep\n");
-  printf("  [--all-pairs]               all pairs concordance\n");
-  printf("  [--show-stats]              show stats\n");
+  fprintf(fp, "  [-p|--tilepath tilepath]    tilepath (start)\n");
+  fprintf(fp, "  [-P|--endtilepath tilepath] end tilepath\n");
+  fprintf(fp, "  [-s|--tilestep tilestep]    tilestep (start)\n");
+  fprintf(fp, "  [-S|--endtilestep tilestep] end tilestep\n");
+  fprintf(fp, "  [--genotype]                genotype flag\n");
+  fprintf(fp, "  [--all-pairs]               all pairs concordance\n");
+  fprintf(fp, "  [--show-stats]              show stats\n");
 
 
-  printf("  [-i|--input ifn]            input file (CGF)\n");
-  printf("  [-o|--output ofn]           output file (CGF)\n");
-  printf("  [-A|--show-all]             show all tilepaths\n");
-  printf("  [-h|--help]                 show help (this screen)\n");
-  printf("  [-v|--version]              show version\n");
-  printf("  [-V|--verbose]              set verbose level\n");
-  printf("  [-t|--tilemap tfn]          use tilemap file (instead of default)\n");
-  printf("  [-Z|--ez-print]             print \"ez\" structure information\n");
-  printf("  [-T|--opt-version vopt]     CGF version option.  Must be one of \"default\" or \"noc-inv\"\n");
-  printf("  [-L|--library-version lopt] CGF library version option.  Overwrites default value if specified\n");
-  printf("  [-U|--update-header]        Update header only\n");
-  printf("  [-Y|--sanity]               Run sanity checks\n");
-  printf("  [-q|--hiq]                  Only output high quality information (band output)\n");
-  printf("\n");
+  fprintf(fp, "  [-i|--input ifn]            input file (CGF)\n");
+  fprintf(fp, "  [-o|--output ofn]           output file (CGF)\n");
+  fprintf(fp, "  [-A|--show-all]             show all tilepaths\n");
+  fprintf(fp, "  [-h|--help]                 show help (this screen)\n");
+  fprintf(fp, "  [-v|--version]              show version\n");
+  fprintf(fp, "  [-V|--verbose]              set verbose level\n");
+  fprintf(fp, "  [-t|--tilemap tfn]          use tilemap file (instead of default)\n");
+  fprintf(fp, "  [-Z|--ez-print]             print \"ez\" structure information\n");
+  fprintf(fp, "  [-T|--opt-version vopt]     CGF version option.  Must be one of \"default\" or \"noc-inv\"\n");
+  fprintf(fp, "  [-L|--library-version lopt] CGF library version option.  Overwrites default value if specified\n");
+  fprintf(fp, "  [-U|--update-header]        Update header only\n");
+  fprintf(fp, "  [-Y|--sanity]               Run sanity checks\n");
+  fprintf(fp, "  [-q|--hiq]                  Only output high quality information (band output)\n");
+  fprintf(fp, "\n");
 }
 
-void show_version() {
-  printf("version %s\n", CGF_VERSION);
+void show_version(FILE *fp) {
+  fprintf(fp, "version %s\n", CGF_VERSION);
 }
 
 #ifdef SAMPLE_STACK_PROFILER
@@ -163,7 +165,7 @@ int main(int argc, char **argv) {
 #ifdef SAMPLE_STACK_PROFILER
   struct sigaction sa;
   struct itimerval timer;
-	suseconds_t usec;
+  suseconds_t usec;
   usec = 25000;
   setup_timer(&sa, &timer, timer_handler, usec);
 #endif
@@ -182,6 +184,9 @@ int main(int argc, char **argv) {
       else if (strcmp(long_options[option_index].name, "repeat")==0) {
         cgf_opt.repeat = atoi(optarg);
       }
+      else if (strcmp(long_options[option_index].name, "genotype")==0) {
+        cgf_opt.encode_genotype_flag=1;
+      }
       else {
         fprintf(stderr, "invalid option, exiting\n");
         exit(-1);
@@ -197,9 +202,11 @@ int main(int argc, char **argv) {
     case 'd': cgf_opt.del=1; cgf_opt.tilepath=atoi(optarg); break;
     case 'i': cgf_opt.ifns.push_back(optarg); break;
     case 'o': cgf_opt.ofn=strdup(optarg); break;
+
     case 'h': cgf_opt.show_help=1; break;
-    case 'A': cgf_opt.show_all=1; break;
     case 'v': cgf_opt.show_version=1; break;
+
+    case 'A': cgf_opt.show_all=1; break;
     case 'q': cgf_opt.hiq_only=1; break;
 
     case 'p': cgf_opt.tilepath=atoi(optarg); break;
@@ -224,7 +231,7 @@ int main(int argc, char **argv) {
               cgf_opt.update_header=1;
               break;
     case 'U': cgf_opt.update_header=1; break;
-    default: printf("unknown option"); cleanup_ok(); break;
+    default: printf("unknown option"); cleanup_err(); break;
   }
 
   if (argc>optind) {
@@ -236,8 +243,8 @@ int main(int argc, char **argv) {
 
   if (cgf_opt.ifns.size()>0) { cgf_opt.ifn = cgf_opt.ifns[0]; }
 
-  if (cgf_opt.show_help) { show_help(); goto cgf_cleanup; }
-  if (cgf_opt.show_version) { show_version(); goto cgf_cleanup; }
+  if (cgf_opt.show_help) { show_help(stdout); goto cgf_cleanup; }
+  if (cgf_opt.show_version) { show_version(stdout); goto cgf_cleanup; }
 
 
   // We must have a command.  If not, exit.
@@ -255,7 +262,7 @@ int main(int argc, char **argv) {
        cgf_opt.match +
        cgf_opt.run_sanity +
        cgf_opt.update_header) == 0) {
-    cleanup_ok();
+    cleanup_err();
   }
 
   // Don't allow more than one command
@@ -303,11 +310,20 @@ int main(int argc, char **argv) {
     cleanup_err();
   }
 
-	//                  __       _
-	//   _______  ___  / /____ _(_)__  ___ ____
-	//  / __/ _ \/ _ \/ __/ _ `/ / _ \/ -_) __/
-	//  \__/\___/_//_/\__/\_,_/_/_//_/\__/_/
-	//
+  // add to CGF header string
+  //
+  for (i=0; i<cgf_opt.cgf_version_opt_ele.size(); i++) {
+    if (cgf_opt.cgf_version_opt_ele[i] == "noc-inv") {
+      cgf_opt.cgf_version_str += ",noc-inv";
+    }
+  }
+
+
+  //                  __       _
+  //   _______  ___  / /____ _(_)__  ___ ____
+  //  / __/ _ \/ _ \/ __/ _ `/ / _ \/ -_) __/
+  //  \__/\___/_//_/\__/\_,_/_/_//_/\__/_/
+  //
 
   if (cgf_opt.create_container) {
 
@@ -329,6 +345,10 @@ int main(int argc, char **argv) {
     if (cgf_opt.ofn=="-") { ofp=stdout; }
     else if ((ofp = fopen(cgf_opt.ofn.c_str(), "w"))==NULL) { perror(cgf_opt.ofn.c_str()); cleanup_err(); }
 
+    if (cgf_opt.encode_genotype_flag) {
+      cgf_opt.cgf_version_str += ",gt";
+    }
+
     cgf_create_container(
         ofp,
         cgf_opt.cgf_version_str.c_str(),
@@ -336,13 +356,13 @@ int main(int argc, char **argv) {
         tilemap_str.c_str());
   }
 
-	//                         __
-	//   ___ ___  _______  ___/ /__
-	//  / -_) _ \/ __/ _ \/ _  / -_)
-	//  \__/_//_/\__/\___/\_,_/\__/
-	//
+  //                         __
+  //   ___ ___  _______  ___/ /__
+  //  / -_) _ \/ __/ _ \/ _  / -_)
+  //  \__/_//_/\__/\___/\_,_/\__/
+  //
 
-	else if (cgf_opt.encode) {
+  else if (cgf_opt.encode) {
     if (cgf_opt.tilepath<0) { printf("must specify tilepath\n"); cleanup_err(); }
 
     if ((cgf_opt.ifn.size()==0) && (cgf_opt.ofn.size()>0))        { cgf_opt.ifn=cgf_opt.ofn; }
@@ -365,20 +385,39 @@ int main(int argc, char **argv) {
       cgf->LibraryVersion= cgf_opt.cglf_version_str;
     }
 
-    //if (cgf_opt.band_ifn) {
     if (cgf_opt.band_ifn.size()>0) {
-      //if ((cgf_opt.band_ifp=fopen(cgf_opt.band_ifn, "r"))==NULL) { perror(cgf_opt.band_ifn); cleanup_err(); }
       if ((cgf_opt.band_ifp=fopen(cgf_opt.band_ifn.c_str(), "r"))==NULL) { perror(cgf_opt.band_ifn.c_str()); cleanup_err(); }
     } else {
       cgf_opt.band_ifp = stdin;
     }
 
-    //encode...
+    // Encode the band information into the CGF structure
     //
-    k = cgf_read_band_tilepath(cgf, cgf_opt.tilepath, cgf_opt.band_ifp);
 
-    //k = cgf_write_to_file(cgf, cgf_opt.ofn);
+    if (cgf_opt.encode_genotype_flag) {
+
+      k = cgf_read_genotype_band_tilepath(cgf_opt.band_ifp, cgf, cgf_opt.tilepath);
+      if (k!=0) {
+        fprintf(stderr, "error reading genotype band, got %i\n", k);
+        cleanup_fail();
+      }
+
+    }
+    else {
+
+      k = cgf_read_band_tilepath(cgf_opt.band_ifp, cgf, cgf_opt.tilepath);
+      if (k!=0) {
+        fprintf(stderr, "error reading band, got %i\n", k);
+        cleanup_fail();
+      }
+
+    }
+
     k = cgf_write_to_file(cgf, cgf_opt.ofn.c_str());
+    if (k<0) {
+      fprintf(stderr, "error writing CGF file, got %i\n", k);
+      cleanup_fail();
+    }
 
   }
 
@@ -389,7 +428,7 @@ int main(int argc, char **argv) {
   //
 
   else if (cgf_opt.show_band) {
-		if (cgf_opt.tilepath<0) { printf("must specify tilepath\n"); cleanup_err(); }
+    if (cgf_opt.tilepath<0) { printf("must specify tilepath\n"); cleanup_err(); }
 
     //if (!cgf_opt.ifn) { printf("provide input CGF file\n"); cleanup_err(); }
     //if ((ifp=fopen(cgf_opt.ifn, "r"))==NULL) { perror(cgf_opt.ifn); cleanup_err(); }
@@ -409,9 +448,16 @@ int main(int argc, char **argv) {
       n_step = cgf_opt.endtilestep - cgf_opt.tilestep + 1;
       if (n_step<0) { n_step=0; }
       if (cgf_opt.hiq_only) {
-        cgf_output_band_format2(cgf, idx, stdout, cgf_opt.tilestep, n_step, cgf_opt.fill_level);
+        cgf_output_band_format2(cgf, idx, stdout, cgf_opt.tilestep, n_step, (uint32_t)cgf_opt.fill_level);
       } else {
-        cgf_output_band_format2(cgf, idx, stdout, cgf_opt.tilestep, n_step, cgf_opt.fill_level);
+
+        if (cgf_opt.encode_genotype_flag) {
+          cgf_output_band_format2(cgf, idx, stdout, cgf_opt.tilestep, n_step, (uint32_t)cgf_opt.fill_level, 0);
+        }
+        else {
+          cgf_output_band_format2(cgf, idx, stdout, cgf_opt.tilestep, n_step, (uint32_t)cgf_opt.fill_level);
+        }
+
       }
     }
 
@@ -444,10 +490,10 @@ int main(int argc, char **argv) {
 
   }
 
-  //      __    __                        _      __ 
+  //      __    __                        _      __
   //  ___/ /__ / /  __ _____ _  ___  ____(_)__  / /_
   // / _  / -_) _ \/ // / _ `/ / _ \/ __/ / _ \/ __/
-  // \_,_/\__/_.__/\_,_/\_, / / .__/_/ /_/_//_/\__/ 
+  // \_,_/\__/_.__/\_,_/\_, / / .__/_/ /_/_//_/\__/
   //
 
   else if (cgf_opt.show_all) {
@@ -463,8 +509,8 @@ int main(int argc, char **argv) {
     cgf_print(cgf);
   }
 
-  //    _      ___   
-  //   (_)__  / _/__ 
+  //    _      ___
+  //   (_)__  / _/__
   //  / / _ \/ _/ _ \
   // /_/_//_/_/ \___/
   //

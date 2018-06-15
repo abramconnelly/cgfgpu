@@ -93,7 +93,7 @@ void cgf_print(cgf_t *cgf) {
     printf("  ExtraData(%i):", (int)tp->ExtraData.size());
     for (j=0; j<tp->ExtraData.size(); j++) {
       if ((j%32)==0) { printf("\n   "); }
-      printf(" %02x", tp->ExtraData[j]);
+      printf(" %02x", (uint8_t)tp->ExtraData[j]);
     }
     printf("\n");
 
@@ -262,7 +262,7 @@ void mk_vec_tilemap(std::vector< std::vector< std::vector<int> > > &vtm, const c
 
 //-----
 //
-void cgf_output_band_format(cgf_t *cgf, int tilepath_idx, FILE *fp, int hiq) {
+int cgf_output_band_format(cgf_t *cgf, int tilepath_idx, FILE *fp, int hiq) {
   int i, j, k;
   int ii, jj;
   int ntile, n_q, n_r, n_ovf, tilestep=0;
@@ -288,12 +288,14 @@ void cgf_output_band_format(cgf_t *cgf, int tilepath_idx, FILE *fp, int hiq) {
   int start_offset=0;
 
   int hexit[8], cur_hexit, n_hexit, n_cache_ovf;
-	int stride;
+  int stride;
 
   std::vector< std::vector< std::vector<int> > > tilemap_vec;
 
 
   //--
+
+  if (tilepath_idx >= (int)cgf->TileStepCount.size()) { return -1; }
 
   mk_vec_tilemap(tilemap_vec, cgf->TileMap.c_str());
 
@@ -307,11 +309,6 @@ void cgf_output_band_format(cgf_t *cgf, int tilepath_idx, FILE *fp, int hiq) {
   span = &(cgf->Span[start_offset*stride]);
   canon = &(cgf->Canon[start_offset*stride]);
   cache_ovf = &(cgf->CacheOverflow[start_offset*stride]);
-
-  //DEBUG
-  //printf("start_offset: %i\n", start_offset);
-  //printf("ntile: %i\n", ntile);
-  //printf("stride: %i\n", stride);
 
   tilepath = &(cgf->TilePath[tilepath_idx]);
 
@@ -327,6 +324,7 @@ void cgf_output_band_format(cgf_t *cgf, int tilepath_idx, FILE *fp, int hiq) {
   for (i=0; i<ntile; i++) {
     variant_v[0][i] = -1;
     variant_v[1][i] = -1;
+
     noc_v[0][i] = v;
     noc_v[1][i] = v;
   }
@@ -348,10 +346,6 @@ void cgf_output_band_format(cgf_t *cgf, int tilepath_idx, FILE *fp, int hiq) {
 
   n_q = (ntile + ((8*stride)-1))/(stride*8);
 
-  //DEBUG
-  //printf("ntile: %i, n_q: %i (%i)\n", ntile, n_q, n_q*8*stride);
-  //loc_verbose=1;
-
   for (ii=0; ii<n_q; ii++) {
 
     ovf_count=0;
@@ -360,17 +354,11 @@ void cgf_output_band_format(cgf_t *cgf, int tilepath_idx, FILE *fp, int hiq) {
     cache_mask = canon[4*ii] | (canon[4*ii+1]<<8) | (canon[4*ii+2]<<16) | (canon[4*ii+3]<<24);
     lo_cache = cache_ovf[4*ii] | (cache_ovf[4*ii+1]<<8) | (cache_ovf[4*ii+2]<<16) | (cache_ovf[4*ii+3]<<24);
 
-   	xspan_mask = ~span_mask;
+    xspan_mask = ~span_mask;
     hiq_mask = ~loq_mask;
     canon_mask = cache_mask & xspan_mask & hiq_mask;
     anchor_mask = span_mask & hiq_mask & (~cache_mask);
     cache_ovf_mask = (anchor_mask & hiq_mask) | ((~span_mask) & (~canon_mask) & hiq_mask);
-
-    //DEBUG
-    //printf("ii: %i\n", ii);
-    //printf("  canon_mask:  %08x\n", canon_mask);
-    //printf("  anchor_mask: %08x\n", anchor_mask);
-    //printf("  cach_mask:   %08x\n", cache_ovf_mask);
 
     for (i=0; i<8; i++) {
       hexit[i] = (int)((lo_cache & (0xf<<(4*i))) >> (4*i));
@@ -382,18 +370,9 @@ void cgf_output_band_format(cgf_t *cgf, int tilepath_idx, FILE *fp, int hiq) {
     for (i=0; i<32; i++) {
       if (cache_ovf_mask & (1<<i)) {
 
-        //DEBUG
-        //printf("    i%i, cur_hexit: %i\n", i, cur_hexit);
-
         if ((cur_hexit<8) && (hexit[cur_hexit] != 0xf)) {
 
-          //DEBUG
-          //printf("    ... cur_hexit %i\n", cur_hexit);fflush(stdout);
-
           int hexit_val = hexit[cur_hexit];
-
-          //DEBUG
-          //printf("    ... hexit_val %i\n", hexit_val); fflush(stdout);
 
           for (j=0; j<tilemap_vec[hexit_val][0].size(); j++) {
             int cur_tilestep = 32*ii + i + j;
@@ -566,11 +545,12 @@ void cgf_output_band_format(cgf_t *cgf, int tilepath_idx, FILE *fp, int hiq) {
     }
   }
 
+  return 0;
 }
 
 //-----
 //
-void cgf_output_band_format2(cgf_t *cgf, int tilepath_idx, FILE *fp, int step_start, int step_n, uint32_t fill_level) {
+int cgf_output_band_format2(cgf_t *cgf, int tilepath_idx, FILE *fp, int step_start, int step_n, uint32_t fill_level, int default_fill) {
   int i, j, k;
   int ii, jj;
   int ntile, n_q, n_r, n_ovf, tilestep=0;
@@ -595,7 +575,7 @@ void cgf_output_band_format2(cgf_t *cgf, int tilepath_idx, FILE *fp, int step_st
   int start_offset=0;
 
   int hexit[8], cur_hexit, n_hexit, n_cache_ovf;
-	int stride;
+  int stride;
 
   std::vector< std::vector< std::vector<int> > > tilemap_vec;
 
@@ -605,6 +585,8 @@ void cgf_output_band_format2(cgf_t *cgf, int tilepath_idx, FILE *fp, int step_st
   mk_vec_tilemap(tilemap_vec, cgf->TileMap.c_str());
 
   for (i=0; i<8; i++) { hexit[8] = 0; }
+
+  if (tilepath_idx >= (int)cgf->TileStepCount.size()) { return -1; }
 
   ntile = (int)cgf->TileStepCount[tilepath_idx];
   stride = (int)cgf->Stride;
@@ -623,8 +605,10 @@ void cgf_output_band_format2(cgf_t *cgf, int tilepath_idx, FILE *fp, int step_st
   noc_v[1].resize(ntile);
 
   for (i=0; i<ntile; i++) {
-    variant_v[0][i] = -1;
-    variant_v[1][i] = -1;
+    //variant_v[0][i] = -1;
+    //variant_v[1][i] = -1;
+    variant_v[0][i] = default_fill;
+    variant_v[1][i] = default_fill;
     noc_v[0][i] = v;
     noc_v[1][i] = v;
   }
@@ -657,7 +641,7 @@ void cgf_output_band_format2(cgf_t *cgf, int tilepath_idx, FILE *fp, int step_st
     cache_mask = canon[4*ii] | (canon[4*ii+1]<<8) | (canon[4*ii+2]<<16) | (canon[4*ii+3]<<24);
     lo_cache = cache_ovf[4*ii] | (cache_ovf[4*ii+1]<<8) | (cache_ovf[4*ii+2]<<16) | (cache_ovf[4*ii+3]<<24);
 
-   	xspan_mask = ~span_mask;
+     xspan_mask = ~span_mask;
     hiq_mask = ~loq_mask;
     canon_mask = cache_mask & xspan_mask & hiq_mask;
     anchor_mask = span_mask & hiq_mask & (~cache_mask);
@@ -865,6 +849,7 @@ void cgf_output_band_format2(cgf_t *cgf, int tilepath_idx, FILE *fp, int step_st
     }
   }
 
+  return 0;
 }
 
 //---
@@ -927,12 +912,12 @@ void cgf4_print_tilepath_stats(cgf_t *cgf, cgf_opt_t *cgf_opt) {
     printf("#tilepath,n_tot,n_hiq,n_hiq_knot,n_hiq_anchor\n");
   }
 
-  loq 				= &(cgf->Loq[0]);
-  span 				= &(cgf->Span[0]);
-  canon 			= &(cgf->Canon[0]);
-  cache_ovf 	= &(cgf->CacheOverflow[0]);
-  overflow 		= &(cgf->Overflow[0]);
-  overflow64 	= &(cgf->Overflow64[0]);
+  loq         = &(cgf->Loq[0]);
+  span         = &(cgf->Span[0]);
+  canon       = &(cgf->Canon[0]);
+  cache_ovf   = &(cgf->CacheOverflow[0]);
+  overflow     = &(cgf->Overflow[0]);
+  overflow64   = &(cgf->Overflow64[0]);
 
 
   stride = cgf->Stride;
@@ -943,19 +928,19 @@ void cgf4_print_tilepath_stats(cgf_t *cgf, cgf_opt_t *cgf_opt) {
 
   for (tilepath = cgf_opt->tilepath; tilepath < (cgf_opt->tilepath + n_tilepath); tilepath++) {
 
-		start_pos = 0;
-		if (tilepath>0) {
-			start_pos = 8 * stride * (cgf->StrideOffset[tilepath-1]);
-		}
+    start_pos = 0;
+    if (tilepath>0) {
+      start_pos = 8 * stride * (cgf->StrideOffset[tilepath-1]);
+    }
 
-		end_pos = 0;
-		if (tilepath>0) {
-			end_pos = 8 * stride * (cgf->StrideOffset[tilepath-1]);
-		}
-		end_pos += cgf->TileStepCount[tilepath];
+    end_pos = 0;
+    if (tilepath>0) {
+      end_pos = 8 * stride * (cgf->StrideOffset[tilepath-1]);
+    }
+    end_pos += cgf->TileStepCount[tilepath];
 
-		n_q = start_pos / (8*stride);
-		n_q_end = end_pos / (8*stride);
+    n_q = start_pos / (8*stride);
+    n_q_end = end_pos / (8*stride);
 
     tot_hiq = 0;
     tot_hiq_knot = 0;
@@ -964,24 +949,24 @@ void cgf4_print_tilepath_stats(cgf_t *cgf, cgf_opt_t *cgf_opt) {
 
     for (ii=n_q; ii<=n_q_end; ii++) {
 
-			// collect the uint32_t bit vectors into a convenient form
-			//
-			loq_mask    = loq[4*ii] | (loq[4*ii+1]<<8) | (loq[4*ii+2]<<16) | (loq[4*ii+3]<<24);
-			span_mask   = span[4*ii] | (span[4*ii+1]<<8) | (span[4*ii+2]<<16) | (span[4*ii+3]<<24);
-			cache_mask  = canon[4*ii] | (canon[4*ii+1]<<8) | (canon[4*ii+2]<<16) | (canon[4*ii+3]<<24);
-			lo_cache    = cache_ovf[4*ii] | (cache_ovf[4*ii+1]<<8) | (cache_ovf[4*ii+2]<<16) | (cache_ovf[4*ii+3]<<24);
+      // collect the uint32_t bit vectors into a convenient form
+      //
+      loq_mask    = loq[4*ii] | (loq[4*ii+1]<<8) | (loq[4*ii+2]<<16) | (loq[4*ii+3]<<24);
+      span_mask   = span[4*ii] | (span[4*ii+1]<<8) | (span[4*ii+2]<<16) | (span[4*ii+3]<<24);
+      cache_mask  = canon[4*ii] | (canon[4*ii+1]<<8) | (canon[4*ii+2]<<16) | (canon[4*ii+3]<<24);
+      lo_cache    = cache_ovf[4*ii] | (cache_ovf[4*ii+1]<<8) | (cache_ovf[4*ii+2]<<16) | (cache_ovf[4*ii+3]<<24);
 
-			xspan_mask      = ~span_mask;
-			hiq_mask        = ~loq_mask;
+      xspan_mask      = ~span_mask;
+      hiq_mask        = ~loq_mask;
 
-			// non anchor spanning tiles are indicated with a span bit set and a canon bit set
-			// so make sure to account for them to get the actual canononical bits out.
-			//
-			canon_mask      = cache_mask & xspan_mask & hiq_mask;
+      // non anchor spanning tiles are indicated with a span bit set and a canon bit set
+      // so make sure to account for them to get the actual canononical bits out.
+      //
+      canon_mask      = cache_mask & xspan_mask & hiq_mask;
 
-			// anchor tile bit vector for convenience.
-			//
-			anchor_mask     = hiq_mask & (~cache_mask) & span_mask;
+      // anchor tile bit vector for convenience.
+      //
+      anchor_mask     = hiq_mask & (~cache_mask) & span_mask;
 
 
       tot_hiq += NumberOfSetBits32(hiq_mask);

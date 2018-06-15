@@ -1549,10 +1549,10 @@ int cgf_hiq_concordance(int *r_match, int *r_tot,
 #endif
 
 
-		//  __ _ _ ___ ______ _____ _____ _ _
-		// / _| '_/ _ (_-<_-</ _ \ V / -_) '_|
-		// \__|_| \___/__/__/\___/\_/\___|_|
-		//
+    //  __ _ _ ___ ______ _____ _____ _ _
+    // / _| '_/ _ (_-<_-</ _ \ V / -_) '_|
+    // \__|_| \___/__/__/\___/\_/\___|_|
+    //
     // crossover match calculations.
     //
     // calculate the number matched from the elements in the
@@ -1561,7 +1561,7 @@ int cgf_hiq_concordance(int *r_match, int *r_tot,
     //
 
 #ifdef CONC_DEBUG
-		if (loc_debug) {
+    if (loc_debug) {
       printf("  ## ii %i, (ii+1) = %i, strideoffset[%i] %i\n",
           (int)ii, (int)((ii+1)),
           (int)tilepath_idx, (int)(a->StrideOffset[tilepath_idx]));
@@ -1804,11 +1804,11 @@ int cgf_hiq_concordance(int *r_match, int *r_tot,
 
   } // for ii=n_q ...
 
-	//           __            __
-	//  _____ __/ _|  _____ __/ _|
-	// / _ \ V /  _| / _ \ V /  _|
-	// \___/\_/|_|   \___/\_/|_|
-	//
+  //           __            __
+  //  _____ __/ _|  _____ __/ _|
+  // / _ \ V /  _| / _ \ V /  _|
+  // \___/\_/|_|   \___/\_/|_|
+  //
 
   for (tilepath_idx = start_tile_path;
        tilepath_idx <= end_tile_path_inc;

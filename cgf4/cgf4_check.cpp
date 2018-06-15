@@ -34,7 +34,7 @@ int cgf_sanity(cgf_t *cgf) {
 
   int start_pos, end_pos, n_pos,
       n_q, n_q_end;
-	int match=0, tot=0, stride=0;
+  int match=0, tot=0, stride=0;
 
   int hexit[8],
       hexit_relative_step[8];
@@ -46,7 +46,7 @@ int cgf_sanity(cgf_t *cgf) {
   uint64_t iistart;
   uint64_t jjstart;
 
-	uint16_t u16;
+  uint16_t u16;
 
   int n_tile, n_r;
 
@@ -169,7 +169,7 @@ int cgf_sanity(cgf_t *cgf) {
       tot += NumberOfSetBits32( hiq_mask & (~nonnchor_span_mask) );
       match += NumberOfSetBits32( canon_mask );
 
-      // record hexit values 
+      // record hexit values
       // and initialize relative step
       //
       for (i=0; i<8; i++) {
@@ -177,7 +177,7 @@ int cgf_sanity(cgf_t *cgf) {
         hexit[i] = (int)u32;
         hexit_relative_step[i] = -1;
       }
- 
+
       p = 0;
       for (i=0; i<32; i++) {
         //if (cache_ovf_mask & ((uint32_t)1<<i)) {

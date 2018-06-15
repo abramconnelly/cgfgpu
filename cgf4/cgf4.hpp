@@ -26,7 +26,7 @@
 #include <sdsl/bit_vectors.hpp>
 
 #define CGF_MAGIC "{\"cgf.b\""
-#define CGF_VERSION "0.4.0"
+#define CGF_VERSION "0.4.1"
 #define CGLF_VERSION "0.1.0"
 
 #define OVF16_MAX 0xffff
@@ -45,7 +45,8 @@ typedef struct tilepath4_type {
   std::string Name;
 
   uint64_t ExtraDataSize;
-  std::vector< char > ExtraData;
+  //std::vector< char > ExtraData;
+  std::vector< uint8_t > ExtraData;
 
   // Low quality information.
   // The "Het" and "Hom" portions indicate whether
@@ -266,6 +267,7 @@ typedef struct cgf_opt_type {
       ez_print;
   int run_test,
       info;
+  int encode_genotype_flag;
 
   int all_pairs;
 
@@ -320,7 +322,10 @@ const char *read_tilemap_from_file(std::string &, const char *);
 void cgf_create_container(FILE *fp, const char *cgf_version, const char *cglf_version, const char *tilemap);
 cgf_t *cgf_read(FILE *fp);
 cgf_t *cgf_read_hiq(FILE *fp);
-int cgf_read_band_tilepath(cgf_t *cgf, int idx, FILE *fp);
+
+int cgf_read_band(FILE *fp, tilepath_vec_t &ds);
+int cgf_read_band_tilepath(FILE *fp, cgf_t *cgf, int idx);
+int cgf_read_genotype_band_tilepath(FILE *fp, cgf_t *cgf, int idx);
 
 uint64_t cgf_write_to_file(cgf_t *cgf, const char *ofn);
 
@@ -329,8 +334,8 @@ void cgf_print(cgf_t *cgf);
 void cgf4_print_tilepath_stats(cgf_t *cgf, cgf_opt_t *cgf_opt);
 void cgf4_print_header_json(cgf_t *cgf, FILE *ofp);
 
-void cgf_output_band_format(cgf_t *cgf, int tilepath_idx, FILE *fp, int hiq);
-void cgf_output_band_format2(cgf_t *cgf, int tilepath_idx, FILE *fp, int step_start, int step_n, uint32_t fill_level);
+int cgf_output_band_format(cgf_t *cgf, int tilepath_idx, FILE *fp, int hiq);
+int cgf_output_band_format2(cgf_t *cgf, int tilepath_idx, FILE *fp, int step_start, int step_n, uint32_t fill_level, int default_fill=-1);
 
 uint64_t cgf_write_to_file(cgf_t *cgf, const char *ofn);
 
