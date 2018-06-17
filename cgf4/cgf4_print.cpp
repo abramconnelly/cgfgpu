@@ -548,6 +548,67 @@ int cgf_output_band_format(cgf_t *cgf, int tilepath_idx, FILE *fp, int hiq) {
   return 0;
 }
 
+//----
+
+#define _ZCHUNK 16384
+
+// takenf rom http://zlib.net/zpipe.c (public domain by Mark Adler)
+//
+int _infz(std::vector< uint8_t > &src, std::vector< uint8_t > &dst) {
+  int i, ret;
+  unsigned int have;
+  z_stream strm;
+  unsigned char in[_ZCHUNK];
+  unsigned char out[_ZCHUNK];
+
+  dst.clear();
+
+  // allocate inflate state
+  //
+  strm.zalloc = Z_NULL;
+  strm.zfree = Z_NULL;
+  strm.opaque = Z_NULL;
+  strm.avail_in = 0;
+  strm.next_in = Z_NULL;
+  ret = inflateInit(&strm);
+  if (ret != Z_OK) { return ret; }
+
+  strm.avail_in = src.size();
+  if (strm.avail_in == 0) { return 0; }
+
+  strm.next_in = (unsigned char *)(&(src[0]));
+
+
+  // decompress until deflate stream ends or end of file
+  //
+  do {
+
+    if (strm.avail_in==0) { break; }
+
+    // run inflate() on input until output buffer not full
+    //
+    do {
+      strm.avail_out = _ZCHUNK;
+      strm.next_out = out;
+      ret = inflate(&strm, Z_NO_FLUSH);
+      switch (ret) {
+        case Z_STREAM_ERROR:
+        case Z_NEED_DICT: ret = Z_DATA_ERROR;
+        case Z_DATA_ERROR:
+        case Z_MEM_ERROR:
+          (void)inflateEnd(&strm);
+          return ret;
+      }
+      have = _ZCHUNK - strm.avail_out;
+      for (i=0; i<have; i++) { dst.push_back(out[i]); }
+    } while (strm.avail_out == 0);
+
+  } while (ret != Z_STREAM_END);
+
+  (void)inflateEnd(&strm);
+  return ret == Z_STREAM_END ? Z_OK : Z_DATA_ERROR;
+}
+
 //-----
 //
 int cgf_output_band_format2(cgf_t *cgf, int tilepath_idx, FILE *fp, int step_start, int step_n, uint32_t fill_level, int default_fill) {
@@ -555,11 +616,16 @@ int cgf_output_band_format2(cgf_t *cgf, int tilepath_idx, FILE *fp, int step_sta
   int ii, jj;
   int ntile, n_q, n_r, n_ovf, tilestep=0;
 
+  int idx, byte_pos, a;
+
   tilepath_t *tilepath;
   int loc_verbose = 0;
   int ovf_count=0;
 
+  uint32_t n32, i32, u32, step32, pos32;
   uint64_t s64, i64, n64;
+
+  size_t end_noninc;
 
   std::vector<int> variant_v[2];
   std::vector< std::vector<int> > noc_v[2];
@@ -579,12 +645,15 @@ int cgf_output_band_format2(cgf_t *cgf, int tilepath_idx, FILE *fp, int step_sta
 
   std::vector< std::vector< std::vector<int> > > tilemap_vec;
 
+  std::vector< uint8_t > _tbuf, _encbuf;
+  std::string sbuf;
+
 
   //--
 
   mk_vec_tilemap(tilemap_vec, cgf->TileMap.c_str());
 
-  for (i=0; i<8; i++) { hexit[8] = 0; }
+  for (i=0; i<8; i++) { hexit[i] = 0; }
 
   if (tilepath_idx >= (int)cgf->TileStepCount.size()) { return -1; }
 
@@ -604,15 +673,13 @@ int cgf_output_band_format2(cgf_t *cgf, int tilepath_idx, FILE *fp, int step_sta
   noc_v[0].resize(ntile);
   noc_v[1].resize(ntile);
 
+
   for (i=0; i<ntile; i++) {
-    //variant_v[0][i] = -1;
-    //variant_v[1][i] = -1;
     variant_v[0][i] = default_fill;
     variant_v[1][i] = default_fill;
     noc_v[0][i] = v;
     noc_v[1][i] = v;
   }
-
 
   for (i=0; i<ntile; i++) {
     n_q = i/8;
@@ -818,7 +885,6 @@ int cgf_output_band_format2(cgf_t *cgf, int tilepath_idx, FILE *fp, int step_sta
   // output all vectors
   //
 
-  size_t end_noninc;
   end_noninc = variant_v[0].size();
 
   if (step_n > 0) {
@@ -833,6 +899,81 @@ int cgf_output_band_format2(cgf_t *cgf, int tilepath_idx, FILE *fp, int step_sta
       fprintf(fp, " %i", variant_v[i][j]);
     }
     fprintf(fp, "]\n");
+  }
+
+  // genotype filel
+  //
+  if (fill_level & 16) {
+
+    byte_pos = 0;
+
+    while (byte_pos < tilepath->ExtraData.size()) {
+
+      if ((byte_pos + 4) > tilepath->ExtraData.size()) { break; }
+
+      sbuf.clear();
+      for (i=0; i<4; i++) {
+        if (tilepath->ExtraData[byte_pos]>0) {
+          //buf += tilepath->ExtraData[byte_pos];
+          sbuf.push_back(tilepath->ExtraData[byte_pos]);
+        }
+        byte_pos++;
+      }
+
+      if ((sbuf=="gt0.") || (sbuf=="gt1.") ||
+          (sbuf=="gtz0") || (sbuf=="gtz1")) {
+
+        int gtz_flag = 0;
+        if ((sbuf=="gtz0") || (sbuf=="gtz1")) { gtz_flag = 1; }
+
+        if      ((sbuf=="gt0.") || (sbuf=="gtz0")) { a = 0; }
+        else if ((sbuf=="gt1.") || (sbuf=="gtz1")) { a = 1; }
+        else { break; }
+
+        if ((byte_pos + 4) > tilepath->ExtraData.size()) { break; }
+        n32 = (uint32_t)( *((uint32_t *)(&(tilepath->ExtraData[byte_pos]))) );
+        byte_pos += 4;
+
+        if ((byte_pos + n32) > tilepath->ExtraData.size()) { break; }
+
+        _tbuf.clear();
+        _encbuf.clear();
+        if (gtz_flag) {
+
+          for (i=0; i<n32; i++) {
+            _tbuf.push_back(tilepath->ExtraData[byte_pos+i]);
+          }
+          _infz(_tbuf, _encbuf);
+        }
+        else {
+          for (i=0; i<n32; i++) {
+            _encbuf.push_back(tilepath->ExtraData[byte_pos+i]);
+          }
+        }
+        byte_pos += n32;
+
+        if ((_encbuf.size()%8)!=0) { break; }
+
+        for (i=0; i<_encbuf.size(); i+=8) {
+
+          step32 = (uint32_t)( *((uint32_t *)(&(_encbuf[i]))) );
+          pos32 = (uint32_t)( *((uint32_t *)(&(_encbuf[i+4]))) );
+
+          if (step32 < noc_v[a].size()) {
+            noc_v[a][step32].push_back(pos32);
+            noc_v[a][step32].push_back(1);
+          }
+          else { break; }
+
+        }
+      }
+
+    }
+
+    if (byte_pos != tilepath->ExtraData.size()) {
+      //error
+    }
+
   }
 
   if (fill_level & 8) {

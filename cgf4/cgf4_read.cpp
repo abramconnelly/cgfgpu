@@ -316,7 +316,7 @@ static int _invert_noc(tilepath_vec_t &tpv) {
 
 
 int cgf_read_genotype_band_tilepath(FILE *fp, cgf_t *cgf, int idx) {
-  int i, j, r;
+  int i, j, r, a;
   tilepath_vec_t ds, orig_ds;
   tilepath_ez_t ez;
   std::map< std::string, int > tilemap;
@@ -329,6 +329,10 @@ int cgf_read_genotype_band_tilepath(FILE *fp, cgf_t *cgf, int idx) {
   uint32_t u32;
 
   uint8_t *u8v;
+
+  int gtz_flag = 1;
+  std::vector< unsigned char > zbuf;
+  z_stream defz;
 
   //---
   //
@@ -361,41 +365,78 @@ int cgf_read_genotype_band_tilepath(FILE *fp, cgf_t *cgf, int idx) {
   tp->ExtraDataSize = 0;
   tp->ExtraData.clear();
 
-  tp->ExtraData.push_back('g');
-  tp->ExtraData.push_back('t');
-  tp->ExtraData.push_back('0');
-  tp->ExtraData.push_back('0');
+  // first allele
+  //
 
-  for (i=0; i<orig_ds.loq_info[0].size(); i++) {
-    for (j=0; j<orig_ds.loq_info[0][i].size(); j+=2) {
-      gt_pos_info.push_back((uint32_t)i);
+  gtz_flag = 0;
+  if (gtz_flag) {
 
-      if (orig_ds.loq_info[0][i][j] < 0) {
-        gt_pos_info.push_back((uint32_t)SPAN_SDSL_ENC_VAL);
+    gt_pos_info.clear();
+
+    for (a=0; a<2; a++) {
+
+      tp->ExtraData.push_back('g');
+      tp->ExtraData.push_back('t');
+      tp->ExtraData.push_back('z');
+      tp->ExtraData.push_back( (a==0) ? '0' : '1');
+
+      gt_pos_info.clear();
+      for (i=0; i<orig_ds.loq_info[a].size(); i++) {
+        for (j=0; j<orig_ds.loq_info[a][i].size(); j+=2) {
+          gt_pos_info.push_back((uint32_t)i);
+          gt_pos_info.push_back( (orig_ds.loq_info[a][i][j] < 0) ? (uint32_t)SPAN_SDSL_ENC_VAL : (uint32_t)orig_ds.loq_info[a][i][j] );
+        }
       }
-      else {
-        gt_pos_info.push_back((uint32_t)orig_ds.loq_info[0][i][j]);
+
+      zbuf.clear();
+      uLong ulsz = compressBound( gt_pos_info.size()*sizeof(uint32_t) );
+      zbuf.resize(ulsz);
+
+      compress(&(zbuf[0]), &ulsz, (const Bytef *)(&(gt_pos_info[0])), gt_pos_info.size()*sizeof(uint32_t));
+
+      u32 = (uint32_t)ulsz;
+      u8v = (uint8_t *)(&u32);
+      for (j=0; j<4; j++) { tp->ExtraData.push_back(u8v[j]); }
+      for (i=0; i<ulsz; i++) { tp->ExtraData.push_back(zbuf[i]); }
+
+    }
+
+  }
+  else {
+
+    for (a=0; a<2; a++) {
+      tp->ExtraData.push_back('g');
+      tp->ExtraData.push_back('t');
+      tp->ExtraData.push_back((a==0) ? '0' : '1');
+      tp->ExtraData.push_back('.');
+
+      gt_pos_info.clear();
+      for (i=0; i<orig_ds.loq_info[a].size(); i++) {
+        for (j=0; j<orig_ds.loq_info[a][i].size(); j+=2) {
+          gt_pos_info.push_back((uint32_t)i);
+          gt_pos_info.push_back( (orig_ds.loq_info[a][i][j] < 0) ? (uint32_t)SPAN_SDSL_ENC_VAL : (uint32_t)orig_ds.loq_info[a][i][j] );
+        }
+      }
+
+      u32 = (uint32_t)(gt_pos_info.size()*sizeof(uint32_t));
+      u8v = (uint8_t *)(&u32);
+      tp->ExtraData.push_back(u8v[0]);
+      tp->ExtraData.push_back(u8v[1]);
+      tp->ExtraData.push_back(u8v[2]);
+      tp->ExtraData.push_back(u8v[3]);
+
+      for (i=0; i<gt_pos_info.size(); i++) {
+        u32 = gt_pos_info[i];
+        u8v = (uint8_t *)(&u32);
+        for (j=0; j<4; j++) { tp->ExtraData.push_back(u8v[j]); }
       }
 
     }
-  }
-
-  u32 = (uint32_t)gt_pos_info.size()/2;
-  u8v = (uint8_t *)(&u32);
-  tp->ExtraData.push_back(u8v[0]);
-  tp->ExtraData.push_back(u8v[1]);
-  tp->ExtraData.push_back(u8v[2]);
-  tp->ExtraData.push_back(u8v[3]);
-
-  for (i=0; i<gt_pos_info.size(); i++) {
-
-    u32 = gt_pos_info[i];
-    u8v = (uint8_t *)(&u32);
-    for (j=0; j<4; j++) { tp->ExtraData.push_back(u8v[j]); }
 
   }
 
   tp->ExtraDataSize = tp->ExtraData.size();
+
 
   //--------
   //--------

@@ -10,6 +10,8 @@
 #include <errno.h>
 #include <sys/time.h>
 
+#include <zlib.h>
+
 #include <getopt.h>
 
 #include <cstdlib>
@@ -26,7 +28,7 @@
 #include <sdsl/bit_vectors.hpp>
 
 #define CGF_MAGIC "{\"cgf.b\""
-#define CGF_VERSION "0.4.1"
+#define CGF_VERSION "0.4.2"
 #define CGLF_VERSION "0.1.0"
 
 #define OVF16_MAX 0xffff
