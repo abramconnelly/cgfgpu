@@ -43,6 +43,6 @@ void cgf_opt_init(cgf_opt_t *opt) {
   opt->repeat = 0;
 
   opt->print_stats=0;
+
+  opt->gtz_flag=1;
 }
-
-

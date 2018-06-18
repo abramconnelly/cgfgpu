@@ -29,6 +29,7 @@ static struct option long_options[] = {
   {"endtilestep",         required_argument,  NULL, 'S'},
 
   {"genotype",            no_argument,        NULL, '\0'},
+  {"no-gtz",              no_argument,        NULL, '\0'},
   {"all-pairs",           no_argument,        NULL, '\0'},
   {"show-stats",          no_argument,        NULL, '\0'},
   {"repeat",              required_argument,  NULL, '\0'},
@@ -60,6 +61,7 @@ void show_help(FILE *fp) {
   fprintf(fp, "  [-s|--tilestep tilestep]    tilestep (start)\n");
   fprintf(fp, "  [-S|--endtilestep tilestep] end tilestep\n");
   fprintf(fp, "  [--genotype]                genotype flag\n");
+  fprintf(fp, "  [--no-gtz]                  do not use zlib compression for tile genotype position information\n");
   fprintf(fp, "  [--all-pairs]               all pairs concordance\n");
   fprintf(fp, "  [--show-stats]              show stats\n");
 
@@ -186,6 +188,9 @@ int main(int argc, char **argv) {
       }
       else if (strcmp(long_options[option_index].name, "genotype")==0) {
         cgf_opt.encode_genotype_flag=1;
+      }
+      else if (strcmp(long_options[option_index].name, "no-gtz")==0) {
+        cgf_opt.gtz_flag=0;
       }
       else {
         fprintf(stderr, "invalid option, exiting\n");
@@ -396,7 +401,7 @@ int main(int argc, char **argv) {
 
     if (cgf_opt.encode_genotype_flag) {
 
-      k = cgf_read_genotype_band_tilepath(cgf_opt.band_ifp, cgf, cgf_opt.tilepath);
+      k = cgf_read_genotype_band_tilepath(cgf_opt.band_ifp, cgf, cgf_opt.tilepath, cgf_opt.gtz_flag);
       if (k!=0) {
         fprintf(stderr, "error reading genotype band, got %i\n", k);
         cleanup_fail();

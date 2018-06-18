@@ -13,11 +13,10 @@ obj=$(src:.cpp=.o)
 %.o: %.cpp
 	$(CC) -c -o $@ $^ $(CC_FLAGS) $(CC_LIB) $(CC_INC)
 
-gcgf: $(obj)
+cgf4: $(obj)
 	$(CC) $(CC_FLAGS) $^ -o cgf4 $(CC_LIB) $(CC_INC)
 
 .PHONY: clean
 clean:
 	rm -f *.o
 	rm -f cgf4
-

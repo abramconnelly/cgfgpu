@@ -28,7 +28,7 @@
 #include <sdsl/bit_vectors.hpp>
 
 #define CGF_MAGIC "{\"cgf.b\""
-#define CGF_VERSION "0.4.2"
+#define CGF_VERSION "0.4.3"
 #define CGLF_VERSION "0.1.0"
 
 #define OVF16_MAX 0xffff
@@ -273,6 +273,8 @@ typedef struct cgf_opt_type {
 
   int all_pairs;
 
+  int gtz_flag;
+
   //char *ifn,
   //     *ofn,
   //     *tilemap_fn;
@@ -327,7 +329,7 @@ cgf_t *cgf_read_hiq(FILE *fp);
 
 int cgf_read_band(FILE *fp, tilepath_vec_t &ds);
 int cgf_read_band_tilepath(FILE *fp, cgf_t *cgf, int idx);
-int cgf_read_genotype_band_tilepath(FILE *fp, cgf_t *cgf, int idx);
+int cgf_read_genotype_band_tilepath(FILE *fp, cgf_t *cgf, int idx, int gtz_flag=1);
 
 uint64_t cgf_write_to_file(cgf_t *cgf, const char *ofn);
 
@@ -359,7 +361,6 @@ void ez_create_vlc_vector(sdsl::vlc_vector<> &vlc_vec, std::vector<int> &v);
 void ez_to_tilepath(tilepath_t *tilepath, tilepath_ez_t *ez);
 
 
-
 // extra functions
 //
 
@@ -384,14 +385,6 @@ int overflow_concordance16(int *r_match, int *r_tot,
                            std::vector<uint16_t> &b_overflow, int start_b, int end_noninc_b,
                            cgf_opt_t *cgf_opt);
 
-/*
-int overflow_concordance16_z( int *r_match, int *r_tot,
-                              uint16_t *a_overflow, int start_a, int end_noninc_a,
-                              uint16_t *b_overflow, int start_b, int end_noninc_b,
-                              cgf_opt_t *cgf_opt);
-                              */
-
-
 // r_match will hold the number of high quality matches
 // r_tot will hold the number of high quality tiles present in both cgfs
 //
@@ -400,7 +393,6 @@ int cgf_hiq_concordance(int *r_match, int *r_tot,
                         int start_tile_path, int start_tile_step,
                         int end_tile_path, int end_tile_step,
                         cgf_opt_t *cgf_opt);
-
 
 
 // helper functions

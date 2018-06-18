@@ -315,7 +315,7 @@ static int _invert_noc(tilepath_vec_t &tpv) {
 }
 
 
-int cgf_read_genotype_band_tilepath(FILE *fp, cgf_t *cgf, int idx) {
+int cgf_read_genotype_band_tilepath(FILE *fp, cgf_t *cgf, int idx, int gtz_flag) {
   int i, j, r, a;
   tilepath_vec_t ds, orig_ds;
   tilepath_ez_t ez;
@@ -330,7 +330,7 @@ int cgf_read_genotype_band_tilepath(FILE *fp, cgf_t *cgf, int idx) {
 
   uint8_t *u8v;
 
-  int gtz_flag = 1;
+  //int gtz_flag = 1;
   std::vector< unsigned char > zbuf;
   z_stream defz;
 
@@ -368,7 +368,6 @@ int cgf_read_genotype_band_tilepath(FILE *fp, cgf_t *cgf, int idx) {
   // first allele
   //
 
-  gtz_flag = 0;
   if (gtz_flag) {
 
     gt_pos_info.clear();
