@@ -54,7 +54,7 @@ OverflowOffset    []8byte                 // offset in entries (e.g. 6 bytes) fo
 Overflow          []{
   TileStep      2byte
   TileVariantA  2byte
-  TileVariantA  2byte
+  TileVariantB  2byte
 }
 
 Overflow64Offset  []8byte                 // offset in entries (e.g. 24 bytes) for each tile path
