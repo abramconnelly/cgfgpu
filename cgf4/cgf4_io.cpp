@@ -159,8 +159,10 @@ size_t gcgf_tilepath_read(cgf_t *cgf, int tilepath_idx, FILE *fp) {
   if (sz!=1) { return -1; }
   tilepath->Name.clear();
   tilepath->Name.resize(u32);
-  sz = fread(&(tilepath->Name[0]), sizeof(char), u32, fp);
-  if (sz!=u32) { return -1; }
+  if (tilepath->Name.size() > 0) {
+    sz = fread(&(tilepath->Name[0]), sizeof(char), u32, fp);
+    if (sz!=u32) { return -1; }
+  }
 
   // Extra Data (size and bytes
   //
@@ -168,8 +170,10 @@ size_t gcgf_tilepath_read(cgf_t *cgf, int tilepath_idx, FILE *fp) {
   if (sz!=1) { return -1; }
   tilepath->ExtraDataSize = u64;
   tilepath->ExtraData.resize(u64);
-  sz = fread(&(tilepath->ExtraData[0]), sizeof(char), u64, fp);
-  if (sz!=u64) { return -1; }
+  if (tilepath->ExtraData.size() > 0) {
+    sz = fread(&(tilepath->ExtraData[0]), sizeof(char), u64, fp);
+    if (sz!=u64) { return -1; }
+  }
 
   // Size of SDSL homozygous arrays
   //
