@@ -1,5 +1,6 @@
 cmake_minimum_required(VERSION 2.8)
 set(PROJNAME cgf)
+set(CMAKE_CXX_STANDARD 11)
 Project(${PROJNAME})
 Message(STATUS "-------------------------------")
 Message(STATUS "Processing Project ${PROJNAME}:")
@@ -26,6 +27,7 @@ endif()
 get_filename_component ( CMAKE_MODULE_PATH ${HELPERS} REALPATH )
 set ( CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} CACHE PATH "Full path to /utils/" )
 set( EXECUTABLE_OUTPUT_PATH ${CMAKE_CURRENT_BINARY_DIR} CACHE PATH "Executable path" )
+set( CMAKE_INSTALL_PREFIX "${CMAKE_CURRENT_BINARY_DIR}" CACHE PATH "Install path" FORCE )
 include( ${CMAKE_MODULE_PATH}/Helpers.cmake )     
 include( ${CMAKE_MODULE_PATH}/Packages.cmake )   
 
@@ -47,8 +49,10 @@ find_package(SDSL)
 if ( SDSL_FOUND )
     message( STATUS "--> Using package SDSL (ver ${SDSL_VERSION})") 
 	add_definitions(-DUSE_SDSL)	
-	add_definitions(-DMSVC_COMPILER)	
-    include_directories(${SDSL_INCLUDE_DIR})	
+        if (WIN32)
+   	  add_definitions(-DMSVC_COMPILER)	
+        endif()
+        include_directories(${SDSL_INCLUDE_DIR})	
 	LIST(APPEND LIBRARIES_OPTIMIZED ${SDSL_LIB_RELEASE} )
 	LIST(APPEND LIBRARIES_DEBUG ${SDSL_LIB_DEBUG} )
 	LIST(APPEND PACKAGE_SOURCE_FILES ${CUDA_TOOLKIT_INCLUDE} )    
@@ -64,7 +68,7 @@ file(GLOB CUDA_FILES "${_KERNEL_SEARCH_PATH}/*.cu" "${_KERNEL_SEARCH_PATH}/*.cuh
 message ( STATUS "Kernels Search Path: ${_KERNEL_SEARCH_PATH}" )
 message ( STATUS "Kernels CUDA Build:  ${CUDA_FILES}" )
 
-_COMPILEPTX ( SOURCES ${CUDA_FILES} TARGET_PATH ${EXECUTABLE_OUTPUT_PATH} GENERATED CUDA_PTX GENPATHS CUDA_PTX_PATHS INCLUDE "${CMAKE_CURRENT_SOURCE_DIR},${GVDB_INCLUDE_DIR}" OPTIONS -arch=compute_30 -code=sm_30 -Xptxas -v,-abi=no,-dlcm=cg --ptxas-options=-v -O3 --use_fast_math )
+_COMPILEPTX ( SOURCES ${CUDA_FILES} TARGET_PATH ${EXECUTABLE_OUTPUT_PATH} GENERATED CUDA_PTX GENPATHS CUDA_PTX_PATHS INCLUDE "${CMAKE_CURRENT_SOURCE_DIR},${GVDB_INCLUDE_DIR}" OPTIONS -arch=compute_35 -code=sm_35 --ptxas-options=-v -O3 --use_fast_math )
 
 #####################################################################################
 # Asset Path

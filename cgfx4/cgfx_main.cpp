@@ -1,6 +1,5 @@
 
 #include <stdio.h>
-#include <conio.h>
 
 #include "app_perf.h"
 #include "cgfx.hpp"
@@ -127,7 +126,6 @@ int cgfx_main(int argc, char **argv)
 	PERF_POP();*/
 
 	printf("Done.\n");
-	_getch();
 
 	return 1;
 }

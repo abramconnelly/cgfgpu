@@ -19,7 +19,7 @@ bool cudaCheck(CUresult status, char* msg)
 	if (status != CUDA_SUCCESS) {
 		const char* stat = "";
 		cuGetErrorString(status, &stat);
-		printf("CUDA ERROR: %s (in %s)\n", stat, msg);
+		printf("CUDA ERROR: #%d %s (in %s)\n", status, stat, msg);
 		exit(-1);
 		return false;
 	}

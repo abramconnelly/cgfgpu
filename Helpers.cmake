@@ -34,6 +34,9 @@ FUNCTION( _COMPILEPTX )
   else()
 	 set ( DEBUG_FLAGS "")
   endif()
+
+  message ( STATUS "NVCC Options: ${_COMPILEPTX_OPTIONS}" )  
+  message ( STATUS "NVCC Include: ${_COMPILEPTX_INCLUDE}" )
   
   if ( WIN32 ) 
 		# Windows - PTX compile
@@ -41,8 +44,6 @@ FUNCTION( _COMPILEPTX )
 		file ( MAKE_DIRECTORY "${_COMPILEPTX_TARGET_PATH}/Release" )
 		string (REPLACE ";" " " _COMPILEPTX_OPTIONS "${_COMPILEPTX_OPTIONS}")  
 		separate_arguments( _OPTS WINDOWS_COMMAND "${_COMPILEPTX_OPTIONS}" )
-		message ( STATUS "NVCC Options: ${_COMPILEPTX_OPTIONS}" )  
-		message ( STATUS "NVCC Include: ${_COMPILEPTX_INCLUDE}" )
 
         set ( INCL "-I\"${_COMPILEPTX_INCLUDE}\"" )
 
@@ -71,7 +72,7 @@ FUNCTION( _COMPILEPTX )
   else ()
 		# Linux - PTX compile
 		file ( MAKE_DIRECTORY "${_COMPILEPTX_TARGET_PATH}" )
-		cuda_compile_ptx(PTX_FILES ${_COMPILEPTX_SOURCES} )		
+		cuda_compile_ptx(PTX_FILES ${_COMPILEPTX_SOURCES} OPTIONS ${_COMPILEPTX_OPTIONS} )		
 		SET ( PTX_FILES_PATH ${PTX_FILES} )
   endif()
 

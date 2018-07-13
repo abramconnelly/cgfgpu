@@ -15,18 +15,20 @@
 	typedef int16_t				sint16;
 	typedef int32_t				sint32;
 	typedef int64_t				sint64;
-	typedef unsigned char		byte;
-	typedef unsigned char		uchar;
-	typedef signed char			schar;
-	typedef uint16_t			ushort;
-	typedef uint32_t			uint;
-	typedef int64_t				slong;		// note: keyword 'ulong' cannot be used with NV_ARM
 #else
 	#include <unistd.h>
 	#include <sys/time.h>
 	#include <getopt.h>
 	#include <cinttypes>
 #endif
+
+// Generic types
+typedef unsigned char	byte;
+typedef unsigned char	uchar;
+typedef signed char	schar;
+typedef uint16_t	ushort;
+typedef uint32_t	uint;
+typedef int64_t		slong;		// note: keyword 'ulong' cannot be used with NV_ARM
 
 #include <string>
 #include <math.h>
