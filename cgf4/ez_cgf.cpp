@@ -30,7 +30,11 @@ int load_tilemap(std::string &tilemap_str, std::map< std::string, int > &tilemap
     pos++;
   }
 
+  return 1;
+
 }
+
+#ifdef USE_SDSL
 
 void ez_create_enc_vector(sdsl::enc_vector<> &enc_vec, std::vector<int> &v) {
   int i;
@@ -132,6 +136,7 @@ void ez_to_tilepath(tilepath_t *tilepath, tilepath_ez_t *ez) {
   tilepath->LoqTileNocStartHetSize   = (uint64_t)(sdsl::size_in_bytes(tilepath->LoqTileNocStartHet));
   tilepath->LoqTileNocLenHetSize     = (uint64_t)(sdsl::size_in_bytes(tilepath->LoqTileNocLenHet));
 }
+#endif
 
 
 // convert output of band cgb file (ascii text) to

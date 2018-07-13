@@ -4,15 +4,33 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
-#include <unistd.h>
-#include <string.h>
+
+#ifdef WIN32
+	#include <unistd_win.h>
+	#include <getopt_win.h>
+	#include <time.h>
+
+	typedef uint32_t			uint32;
+	typedef uint64_t			uint64;
+	typedef int16_t				sint16;
+	typedef int32_t				sint32;
+	typedef int64_t				sint64;
+	typedef unsigned char		byte;
+	typedef unsigned char		uchar;
+	typedef signed char			schar;
+	typedef uint16_t			ushort;
+	typedef uint32_t			uint;
+	typedef int64_t				slong;		// note: keyword 'ulong' cannot be used with NV_ARM
+#else
+	#include <unistd.h>
+	#include <sys/time.h>
+	#include <getopt.h>
+	#include <cinttypes>
+#endif
+
+#include <string>
 #include <math.h>
 #include <errno.h>
-#include <sys/time.h>
-
-#include <zlib.h>
-
-#include <getopt.h>
 
 #include <cstdlib>
 #include <map>
@@ -22,10 +40,11 @@
 #include <iterator>
 
 #include <cstdio>
-#include <cinttypes>
 
-#include <sdsl/vectors.hpp>
-#include <sdsl/bit_vectors.hpp>
+#ifdef USE_SDSL
+	#include <sdsl/vectors.hpp>
+	#include <sdsl/bit_vectors.hpp>
+#endif
 
 #define CGF_MAGIC "{\"cgf.b\""
 #define CGF_VERSION "0.4.3"
@@ -82,6 +101,7 @@ typedef struct tilepath4_type {
   uint64_t LoqTileNocStartHetSize;
   uint64_t LoqTileNocLenHetSize;
 
+#ifdef USE_SDSL
   sdsl::enc_vector<> LoqTileStepHom;
   sdsl::vlc_vector<> LoqTileVariantHom;
   sdsl::enc_vector<> LoqTileNocSumHom;
@@ -93,6 +113,9 @@ typedef struct tilepath4_type {
   sdsl::enc_vector<> LoqTileNocSumHet;
   sdsl::vlc_vector<> LoqTileNocStartHet;
   sdsl::vlc_vector<> LoqTileNocLenHet;
+#else
+
+#endif
 
 } tilepath4_t;
 typedef tilepath4_t tilepath_t;
@@ -102,7 +125,7 @@ typedef struct cgf4_type {
   unsigned char Magic[8];
   std::string CGFVersion;
   std::string LibraryVersion;
-  uint64_t TilePathCount;
+  uint64_t TilePathCount=0;
   std::string TileMap;
 
   int TileMapCacheInit=0;
@@ -178,11 +201,11 @@ typedef struct cgf4_type {
   std::vector< unsigned char > CacheOverflow;
 
 
-  std::vector< unsigned uint64_t > OverflowOffset;
-  std::vector< unsigned uint16_t > Overflow;
+  std::vector< uint64_t > OverflowOffset;
+  std::vector< uint16_t > Overflow;
 
-  std::vector< unsigned uint64_t > Overflow64Offset;
-  std::vector< unsigned uint64_t > Overflow64;
+  std::vector< uint64_t > Overflow64Offset;
+  std::vector< uint64_t > Overflow64;
 
   std::vector<uint64_t> TilePathStructOffset;
   std::vector<tilepath_t> TilePath;
@@ -311,9 +334,11 @@ typedef struct cgf_opt_type {
 
 } cgf_opt_t;
 
+
+int cgf4_main(int argc, char **argv);
+void cgf4_show_help(FILE *fp);
+
 void cgf_opt_init(cgf_opt_t *opt);
-
-
 
 int str2tilemap(std::string &s, tilemap_t *tilemap);
 
@@ -355,10 +380,12 @@ void ez_print(tilepath_ez_t &);
 int load_tilemap(std::string &, std::map< std::string, int > &);
 void mk_tilemap_key(std::string &key, tilepath_vec_t &tilepath, int tilestep, int n);
 
+#ifdef USE_SDSL
+	void ez_create_enc_vector(sdsl::enc_vector<> &enc_vec, std::vector<int> &v);
+	void ez_create_vlc_vector(sdsl::vlc_vector<> &vlc_vec, std::vector<int> &v);
+	void ez_to_tilepath(tilepath_t *tilepath, tilepath_ez_t *ez);
+#endif
 
-void ez_create_enc_vector(sdsl::enc_vector<> &enc_vec, std::vector<int> &v);
-void ez_create_vlc_vector(sdsl::vlc_vector<> &vlc_vec, std::vector<int> &v);
-void ez_to_tilepath(tilepath_t *tilepath, tilepath_ez_t *ez);
 
 
 // extra functions
@@ -394,6 +421,13 @@ int cgf_hiq_concordance(int *r_match, int *r_tot,
                         int end_tile_path, int end_tile_step,
                         cgf_opt_t *cgf_opt);
 
+void cgf_get_block_start_end( cgf_t* a, int& blk_start, int& blk_end, int start_path, int start_step, int end_path, int end_step);
+
+int cgf_hiq_concordance_no_overflow (int *r_match, int *r_tot, unsigned char* r_match_list, unsigned char* r_tot_list,
+	cgf_t *a, cgf_t *b,
+	int start_tile_path, int start_tile_step,
+	int end_tile_path, int end_tile_step,
+	cgf_opt_t *cgf_opt);
 
 // helper functions
 

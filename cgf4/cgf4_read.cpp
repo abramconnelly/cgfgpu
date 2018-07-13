@@ -24,6 +24,7 @@ static uint64_t _calc_tilepath_size(tilepath_t *tilepath) {
 
   // The SDSL arrays themselves
   //
+#ifdef USE_SDSL
   byte_count += (uint64_t)(sdsl::size_in_bytes(tilepath->LoqTileStepHom));
   byte_count += (uint64_t)(sdsl::size_in_bytes(tilepath->LoqTileVariantHom));
   byte_count += (uint64_t)(sdsl::size_in_bytes(tilepath->LoqTileNocSumHom));
@@ -35,6 +36,7 @@ static uint64_t _calc_tilepath_size(tilepath_t *tilepath) {
   byte_count += (uint64_t)(sdsl::size_in_bytes(tilepath->LoqTileNocSumHet));
   byte_count += (uint64_t)(sdsl::size_in_bytes(tilepath->LoqTileNocStartHet));
   byte_count += (uint64_t)(sdsl::size_in_bytes(tilepath->LoqTileNocLenHet));
+#endif
 
   return byte_count;
 
@@ -136,6 +138,7 @@ void ez_add_tilepath(cgf_t *cgf, int tilepath_idx, tilepath_ez_t &ez) {
   tp->ExtraDataSize = 0;
   tp->ExtraData.clear();
 
+#ifdef USE_SDSL
   tp->LoqTileStepHomSize = 0;
   tp->LoqTileVariantHomSize = 0;
   tp->LoqTileNocSumHomSize = 0;
@@ -149,6 +152,7 @@ void ez_add_tilepath(cgf_t *cgf, int tilepath_idx, tilepath_ez_t &ez) {
   tp->LoqTileNocLenHetSize = 0;
 
   ez_to_tilepath(tp, &ez);
+#endif
 
   sz64 = _calc_tilepath_size(tp);
   if (cgf->TilePathStructOffset.size()>0) {
@@ -332,7 +336,10 @@ int cgf_read_genotype_band_tilepath(FILE *fp, cgf_t *cgf, int idx, int gtz_flag)
 
   //int gtz_flag = 1;
   std::vector< unsigned char > zbuf;
+
+#ifdef USE_ZSTREAM
   z_stream defz;
+#endif
 
   //---
   //
@@ -387,6 +394,7 @@ int cgf_read_genotype_band_tilepath(FILE *fp, cgf_t *cgf, int idx, int gtz_flag)
         }
       }
 
+#ifdef USE_ZSTREAM
       zbuf.clear();
       uLong ulsz = compressBound( gt_pos_info.size()*sizeof(uint32_t) );
       zbuf.resize(ulsz);
@@ -397,6 +405,7 @@ int cgf_read_genotype_band_tilepath(FILE *fp, cgf_t *cgf, int idx, int gtz_flag)
       u8v = (uint8_t *)(&u32);
       for (j=0; j<4; j++) { tp->ExtraData.push_back(u8v[j]); }
       for (i=0; i<ulsz; i++) { tp->ExtraData.push_back(zbuf[i]); }
+#endif
 
     }
 
@@ -454,6 +463,7 @@ int cgf_read_genotype_band_tilepath(FILE *fp, cgf_t *cgf, int idx, int gtz_flag)
   tp->LoqTileNocStartHetSize  = 0;
   tp->LoqTileNocLenHetSize    = 0;
 
+#ifdef USE_SDSL
   ez_create_enc_vector(tp->LoqTileStepHom,      empty_vec);
   ez_create_vlc_vector(tp->LoqTileVariantHom,   empty_vec);
   ez_create_enc_vector(tp->LoqTileNocSumHom,    empty_vec);
@@ -477,6 +487,7 @@ int cgf_read_genotype_band_tilepath(FILE *fp, cgf_t *cgf, int idx, int gtz_flag)
   tp->LoqTileNocSumHetSize    = (uint64_t)(sdsl::size_in_bytes(tp->LoqTileNocSumHet));
   tp->LoqTileNocStartHetSize  = (uint64_t)(sdsl::size_in_bytes(tp->LoqTileNocStartHet));
   tp->LoqTileNocLenHetSize    = (uint64_t)(sdsl::size_in_bytes(tp->LoqTileNocLenHet));
+#endif
 
   return 0;
 }

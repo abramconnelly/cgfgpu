@@ -1,4 +1,5 @@
 #include "cgf4.hpp"
+#include "app_perf.h"
 
 // For the most part, high quality tile concordance is
 // conceptually straight forward:
@@ -114,6 +115,7 @@ static void print_bin32(uint32_t u32) {
 // tiles, the normal usage is that this will compare only high quality
 // overflow elements.
 //
+
 inline int overflow_concordance16_z(int *r_match, int *r_tot,
                              uint16_t *a_overflow, int start_a, int end_noninc_a,
                              uint16_t *b_overflow, int start_b, int end_noninc_b,
@@ -905,6 +907,7 @@ int overflow_concordance16(int *r_match, int *r_tot,
 
 
 
+
 // The high quality concordance does a few different types of counts:
 // * Count the number of canonical (high quality) bits set
 // * Count the number of cache overflow entities in common
@@ -951,6 +954,7 @@ int overflow_concordance16(int *r_match, int *r_tot,
 // This allows for an easier concordance test as tilepath boundaries
 // don't need special consideration.
 //
+
 int cgf_hiq_concordance(int *r_match, int *r_tot,
                         cgf_t *a, cgf_t *b,
                         int start_tile_path, int start_tile_step,
@@ -1050,12 +1054,12 @@ int cgf_hiq_concordance(int *r_match, int *r_tot,
   cache_ovf_a = &(a->CacheOverflow[0]);
   cache_ovf_b = &(b->CacheOverflow[0]);
 
-  overflow_a = &(a->Overflow[0]);
-  overflow_b = &(b->Overflow[0]);
+  if ( a->Overflow.size()>0 ) overflow_a = &(a->Overflow[0]);
+  if ( a->Overflow.size()>0) overflow_b = &(b->Overflow[0]);
 
-  overflow64_a = &(a->Overflow64[0]);
-  overflow64_b = &(b->Overflow64[0]);
-
+  if (a->Overflow64.size()>0 ) overflow64_a = &(a->Overflow64[0]);
+  if (b->Overflow64.size()>0)  overflow64_b = &(b->Overflow64[0]);
+  
   // reuse cached tilemap if available
   //
   if (a->TileMapCacheInit==0) {
@@ -1170,7 +1174,14 @@ int cgf_hiq_concordance(int *r_match, int *r_tot,
     anchor_mask_b     = span_mask_b & hiq_mask_b & (~cache_mask_b);
     cache_ovf_mask_b  = (anchor_mask_b & hiq_mask_b) | ((~span_mask_b) & (~canon_mask_b) & hiq_mask_b);
     non_anchor_span_mask_b = span_mask_b & (~anchor_mask_b);
+	
+	// Variant:  [0 1 3 -1 -1  2]
+	// Span:      0 0 1  1  1  0
+	// Canon:     1 0 0* 1* 1* 0    * = Spanning Tile Rules
 
+	// Spanning Tile Rules:
+	//   anchor tile = span bit set, canonical bit is NOT set.
+	//   spanning tile = span bit set, canonical bit IS set. (non-anchor)
 
     // The total number of high quality matches is the number of high quality
     // tiles both have in common, excluding the non-anchor high quality tiles
@@ -1604,7 +1615,7 @@ int cgf_hiq_concordance(int *r_match, int *r_tot,
       //
       spillover_knot_a.clear();
       for (i=0; i<spillover_a.size(); i+=2) {
-
+		  
         // if the knot passes over the end of the last tilestep in our window, ignore it
         //
         if (ii == n_q_end) {
@@ -1631,6 +1642,7 @@ int cgf_hiq_concordance(int *r_match, int *r_tot,
         //
         tile_offset=0;
         for ( j=tilemap->offset[ spillover_a[i+1]-1 ]; j<tilemap->offset[spillover_a[i+1]]; j++) {
+			
           spillover_knot_a.push_back(spillover_a[i] + tile_offset);
           spillover_knot_a.push_back( tilemap->variant[0][j] );
           spillover_knot_a.push_back( tilemap->variant[1][j] );
@@ -1752,7 +1764,8 @@ int cgf_hiq_concordance(int *r_match, int *r_tot,
 
       t_match=0; t_tot=0;
 
-      overflow_concordance16_z( &t_match, &t_tot,
+	  if ( a->Overflow.size() > 0 && spillover16_knot_b.size()>0 )
+	       overflow_concordance16_z( &t_match, &t_tot,
                                 &(a->Overflow[0]), iistart, end_noninc_a,
                                 &(spillover16_knot_b[0]), 0, (int)spillover16_knot_b.size(),
                                 cgf_opt);
@@ -1776,8 +1789,9 @@ int cgf_hiq_concordance(int *r_match, int *r_tot,
 #endif
 
       t_match=0; t_tot = 0;
-
-      overflow_concordance16_z( &t_match, &t_tot,
+	  
+	  if (b->Overflow.size() > 0 && spillover16_knot_a.size() > 0 )
+         overflow_concordance16_z( &t_match, &t_tot,
                                 &(spillover16_knot_a[0]), 0, (int)spillover16_knot_a.size(),
                                 &(b->Overflow[0]), jjstart, end_noninc_b,
                                 cgf_opt);
@@ -1914,3 +1928,526 @@ int cgf_hiq_concordance(int *r_match, int *r_tot,
 
   return 0;
 }
+
+
+void cgf_get_block_start_end(cgf_t* a, int& blk_start, int& blk_end, int start_path, int start_step, int end_path, int end_step)
+{
+	int start_pos = 0;
+	if (start_path > 0) {
+		start_pos = 8 * a->Stride * (a->StrideOffset[start_path - 1]);
+	}
+	start_pos += start_step;
+
+	int end_pos = 0;
+	if (end_path > 0) {
+		end_pos = 8 * a->Stride * (a->StrideOffset[end_path - 1]);
+	}
+	end_pos += end_step;
+
+	blk_start = start_pos / (8 * a->Stride);
+	blk_end = end_pos / (8 * a->Stride);
+}
+
+
+// cgf_hiq_concordance_no_overflow
+//
+//  Does same as primary concordance function,
+//  but WITHOUT the Overflow test. 
+//
+int cgf_hiq_concordance_no_overflow (int *r_match, int *r_tot, unsigned char* r_match_list, unsigned char* r_tot_list,
+	cgf_t *a, cgf_t *b,
+	int start_tile_path, int start_tile_step,
+	int end_tile_path_inc, int end_tile_step_inc,
+	cgf_opt_t *cgf_opt) {
+	int loc_debug = 0;
+
+	int i, j, k, p;
+	uint64_t ii, jj, end_noninc_a, end_noninc_b;
+	uint64_t ii4, jj4;
+	uint16_t u16;
+
+	int match = 0, tot = 0;
+
+	int n_q, n_q_end;
+
+	unsigned char *loq_a, *loq_b,
+		*span_a, *span_b,
+		*canon_a, *canon_b,
+		*cache_ovf_a, *cache_ovf_b;
+	
+	int hexit_a[8], hexit_b[8],
+		hexit_relative_step_a[8], hexit_relative_step_b[8];
+
+	uint32_t loq_mask_a, loq_mask_b,
+		hiq_mask_a, hiq_mask_b,
+		span_mask_a, span_mask_b,
+		xspan_mask_a, xspan_mask_b,
+		cache_mask_a, cache_mask_b,
+		lo_cache_a, lo_cache_b,
+		canon_mask_a, canon_mask_b,
+		anchor_mask_a, anchor_mask_b,
+		non_anchor_span_mask_a, non_anchor_span_mask_b,
+		cache_ovf_mask_a, cache_ovf_mask_b;
+
+	uint32_t env_mask;
+
+	uint32_t u32, t_u32;
+	uint16_t prev_tile_step16_a, prev_tile_step16_b;
+	int prev_tile_step_a, prev_tile_step_b;
+
+	int tile_step_block_start;
+	int tile_offset;
+
+	int stride;
+	int tilepath_idx;
+
+	int start_block_tile = 0;
+	int idx, z;
+
+	int t_match, t_tot;
+
+	uint64_t iistart;
+	uint64_t jjstart;
+
+	std::vector<int> knot_a, knot_b;
+	int knot_len = 0;
+
+	tilemap_t *tilemap, tm;
+
+	if (cgf_opt && (cgf_opt->verbose)) {
+		loc_debug = 1;
+	}
+
+	knot_a.clear();             knot_b.clear();
+
+	loq_a = &(a->Loq[0]);
+	loq_b = &(b->Loq[0]);
+
+	span_a = &(a->Span[0]);
+	span_b = &(b->Span[0]);
+
+	canon_a = &(a->Canon[0]);
+	canon_b = &(b->Canon[0]);
+
+	cache_ovf_a = &(a->CacheOverflow[0]);
+	cache_ovf_b = &(b->CacheOverflow[0]);
+
+	// reuse cached tilemap if available
+	//
+	if (a->TileMapCacheInit == 0) {
+		str2tilemap(a->TileMap, &tm);
+		tilemap = &tm;
+	}
+	else {
+		tilemap = &(a->TileMapCache);
+	}
+
+	tilepath_idx = start_tile_path;
+
+	cgf_get_block_start_end( a, n_q, n_q_end, start_tile_path, start_tile_step, end_tile_path_inc, end_tile_step_inc );
+	
+	start_block_tile = start_tile_step / (8 * a->Stride);
+	start_block_tile *= 32;
+
+
+#ifdef CONC_DEBUG
+	if (loc_debug) {
+		printf("lens (%i,%i) (%i,%i) (%i,%i) (%i,%i)\n",
+			(int)a->Loq.size(), (int)b->Loq.size(),
+			(int)a->Span.size(), (int)b->Span.size(),
+			(int)a->Canon.size(), (int)b->Canon.size(),
+			(int)a->CacheOverflow.size(), (int)b->CacheOverflow.size());
+
+		printf("pos [%i,%i (+%i)]\n", start_pos, end_pos, n_pos);
+		printf("n_q %i, n_q_end %i\n", n_q, n_q_end);
+	}
+#endif
+	unsigned char block_match, block_tot;
+	
+	// For every block in tilepath range requested
+	//   n_q = starting block
+	//   n_q_end = ending block (inclusive)
+	//
+	for (ii = n_q; ii <= n_q_end; ii++, start_block_tile += 32) {
+
+		block_match = 0;
+
+		// Reset relevant tile path and tile step information
+		//
+		env_mask = 0xffffffff;
+
+		// Filter out the bits at start or end. That is env_mask.
+		if (ii == n_q) {
+			env_mask &= (0xffffffff << (start_tile_step % 32));
+		}
+
+		if (ii == n_q_end) {
+			env_mask &= (0xffffffff >> (31 - (end_tile_step_inc % 32)));
+		}
+
+#ifdef CONC_DEBUG
+		if (loc_debug) {
+			printf("\n\n---\n");
+			printf("start_block_tile: %i (%x)\n", start_block_tile, start_block_tile);
+			printf("ii %llu (%llu of [%llu,%llu])\n",
+				(unsigned long long)ii, (unsigned long long)ii,
+				(unsigned long long)n_q, (unsigned long long)n_q_end);
+			printf("  env_mask: "); print_bin32(env_mask); printf("\n");
+		}
+#endif
+
+		// collect the uint32_t bit vectors into a convenient form
+		//
+		ii4 = 4 * ii;
+		loq_mask_a = loq_a[ii4] | (loq_a[ii4 + 1] << 8) | (loq_a[ii4 + 2] << 16) | (loq_a[ii4 + 3] << 24);
+		span_mask_a = span_a[ii4] | (span_a[ii4 + 1] << 8) | (span_a[ii4 + 2] << 16) | (span_a[ii4 + 3] << 24);
+		cache_mask_a = canon_a[ii4] | (canon_a[ii4 + 1] << 8) | (canon_a[ii4 + 2] << 16) | (canon_a[ii4 + 3] << 24);
+		lo_cache_a = cache_ovf_a[ii4] | (cache_ovf_a[ii4 + 1] << 8) | (cache_ovf_a[ii4 + 2] << 16) | (cache_ovf_a[ii4 + 3] << 24);
+		
+		xspan_mask_a = ~span_mask_a;
+		hiq_mask_a = ~loq_mask_a;
+
+		// non anchor spanning tiles are indicated with a span bit set and a canon bit set
+		// so make sure to account for them to get the actual canononical bits out.
+		//
+		canon_mask_a = cache_mask_a & xspan_mask_a & hiq_mask_a;
+
+		// anchor tile bit vector for convenience.
+		//
+		anchor_mask_a = span_mask_a & hiq_mask_a & (~cache_mask_a);
+
+		// convenience bit vector of anchor tile non-canonical tiles,
+		// excluding spanning tiles.
+		//
+		cache_ovf_mask_a = (anchor_mask_a & hiq_mask_a) | ((~span_mask_a) & (~canon_mask_a) & hiq_mask_a);
+
+		non_anchor_span_mask_a = span_mask_a & (~anchor_mask_a);
+		
+		// --
+		//
+		loq_mask_b = loq_b[ii4] | (loq_b[ii4 + 1] << 8) | (loq_b[ii4 + 2] << 16) | (loq_b[ii4 + 3] << 24);
+		span_mask_b = span_b[ii4] | (span_b[ii4 + 1] << 8) | (span_b[ii4 + 2] << 16) | (span_b[ii4 + 3] << 24);
+		cache_mask_b = canon_b[ii4] | (canon_b[ii4 + 1] << 8) | (canon_b[ii4 + 2] << 16) | (canon_b[ii4 + 3] << 24);
+		lo_cache_b = cache_ovf_b[ii4] | (cache_ovf_b[ii4 + 1] << 8) | (cache_ovf_b[ii4 + 2] << 16) | (cache_ovf_b[ii4 + 3] << 24);
+	
+		xspan_mask_b = ~span_mask_b;
+		hiq_mask_b = ~loq_mask_b;
+
+		canon_mask_b = cache_mask_b & xspan_mask_b & hiq_mask_b;
+		anchor_mask_b = span_mask_b & hiq_mask_b & (~cache_mask_b);
+		cache_ovf_mask_b = (anchor_mask_b & hiq_mask_b) | ((~span_mask_b) & (~canon_mask_b) & hiq_mask_b);
+		non_anchor_span_mask_b = span_mask_b & (~anchor_mask_b);
+	
+		// Count the number of canonical matches.
+		//
+		block_match += NumberOfSetBits32(env_mask & canon_mask_a & canon_mask_b);
+
+#ifdef CONC_DEBUG
+		if (loc_debug) {
+			t_u32 = env_mask & canon_mask_a & canon_mask_b;
+			for (i = 0; i < 32; i++) {
+				if (t_u32 & ((uint32_t)1 << i)) {
+					printf("MATCH %i+1 (match %i)\n", start_block_tile + i, match);
+				}
+			}
+		}
+
+		if (loc_debug) {
+			printf("  hiq   %08x %08x\n",
+				(unsigned int)hiq_mask_a,
+				(unsigned int)hiq_mask_b);
+			printf("  canon %08x %08x\n",
+				(unsigned int)canon_mask_a,
+				(unsigned int)canon_mask_b);
+			printf("  anch  %08x %08x\n",
+				(unsigned int)anchor_mask_a,
+				(unsigned int)anchor_mask_b);
+
+			printf("  hiq:    "); print_bin32(hiq_mask_a); printf(" "); print_bin32(hiq_mask_b); printf("\n");
+			printf("  canon:  "); print_bin32(canon_mask_a); printf(" "); print_bin32(canon_mask_b); printf("\n");
+			printf("  anchor: "); print_bin32(anchor_mask_a); printf(" "); print_bin32(anchor_mask_b); printf("\n");
+			printf("  span:   "); print_bin32(span_mask_a); printf(" "); print_bin32(span_mask_b); printf("\n");
+			printf("  xspan:  "); print_bin32(xspan_mask_a); printf(" "); print_bin32(xspan_mask_b); printf("\n");
+		}
+#endif
+		// Cache values for genome a, pulled out into array 
+		//
+		hexit_a[0] = (lo_cache_a & ((uint32_t)0xf));
+		hexit_a[1] = (lo_cache_a & ((uint32_t)0xf << 4)) >> 4;
+		hexit_a[2] = (lo_cache_a & ((uint32_t)0xf << 8)) >> 8;
+		hexit_a[3] = (lo_cache_a & ((uint32_t)0xf << 12)) >> 12;
+
+		hexit_a[4] = (lo_cache_a & ((uint32_t)0xf << 16)) >> 16;
+		hexit_a[5] = (lo_cache_a & ((uint32_t)0xf << 20)) >> 20;
+		hexit_a[6] = (lo_cache_a & ((uint32_t)0xf << 24)) >> 24;
+		hexit_a[7] = (lo_cache_a & ((uint32_t)0xf << 28)) >> 28;
+
+		hexit_relative_step_a[0] = -1;
+		hexit_relative_step_a[1] = -1;
+		hexit_relative_step_a[2] = -1;
+		hexit_relative_step_a[3] = -1;
+		hexit_relative_step_a[4] = -1;
+		hexit_relative_step_a[5] = -1;
+		hexit_relative_step_a[6] = -1;
+		hexit_relative_step_a[7] = -1;
+
+		// Fill out the hexit_relative_step array
+		// This is a count of the canonical bits to get the cache entry positions. 
+		// Note: cache_ovf_mask is essential the canonical bits (masked with high quality bits),
+		//   and accounts for spanning tiles.
+		//
+		p = 0;
+		do {
+
+			if (cache_ovf_mask_a & 0x1u) { hexit_relative_step_a[p++] = 0; }
+			if (cache_ovf_mask_a & 0x2u) { hexit_relative_step_a[p++] = 1; }
+			if (cache_ovf_mask_a & 0x4u) { hexit_relative_step_a[p++] = 2; }
+			if (cache_ovf_mask_a & 0x8u) { hexit_relative_step_a[p++] = 3; }
+
+			if (cache_ovf_mask_a & 0x10u) { hexit_relative_step_a[p++] = 4; }
+			if (cache_ovf_mask_a & 0x20u) { hexit_relative_step_a[p++] = 5; }
+			if (cache_ovf_mask_a & 0x40u) { hexit_relative_step_a[p++] = 6; }
+			if (cache_ovf_mask_a & 0x80u) { hexit_relative_step_a[p++] = 7; if (p >= 8) { break; } }
+
+			if (cache_ovf_mask_a & 0x100u) { hexit_relative_step_a[p++] = 8; if (p >= 8) { break; } }
+			if (cache_ovf_mask_a & 0x200u) { hexit_relative_step_a[p++] = 9; if (p >= 8) { break; } }
+			if (cache_ovf_mask_a & 0x400u) { hexit_relative_step_a[p++] = 10; if (p >= 8) { break; } }
+			if (cache_ovf_mask_a & 0x800u) { hexit_relative_step_a[p++] = 11; if (p >= 8) { break; } }
+
+			if (cache_ovf_mask_a & 0x1000u) { hexit_relative_step_a[p++] = 12; if (p >= 8) { break; } }
+			if (cache_ovf_mask_a & 0x2000u) { hexit_relative_step_a[p++] = 13; if (p >= 8) { break; } }
+			if (cache_ovf_mask_a & 0x4000u) { hexit_relative_step_a[p++] = 14; if (p >= 8) { break; } }
+			if (cache_ovf_mask_a & 0x8000u) { hexit_relative_step_a[p++] = 15; if (p >= 8) { break; } }
+
+			if (cache_ovf_mask_a & 0x10000u) { hexit_relative_step_a[p++] = 16; if (p >= 8) { break; } }
+			if (cache_ovf_mask_a & 0x20000u) { hexit_relative_step_a[p++] = 17; if (p >= 8) { break; } }
+			if (cache_ovf_mask_a & 0x40000u) { hexit_relative_step_a[p++] = 18; if (p >= 8) { break; } }
+			if (cache_ovf_mask_a & 0x80000u) { hexit_relative_step_a[p++] = 19; if (p >= 8) { break; } }
+
+			if (cache_ovf_mask_a & 0x100000u) { hexit_relative_step_a[p++] = 20; if (p >= 8) { break; } }
+			if (cache_ovf_mask_a & 0x200000u) { hexit_relative_step_a[p++] = 21; if (p >= 8) { break; } }
+			if (cache_ovf_mask_a & 0x400000u) { hexit_relative_step_a[p++] = 22; if (p >= 8) { break; } }
+			if (cache_ovf_mask_a & 0x800000u) { hexit_relative_step_a[p++] = 23; if (p >= 8) { break; } }
+
+			if (cache_ovf_mask_a & 0x1000000u) { hexit_relative_step_a[p++] = 24; if (p >= 8) { break; } }
+			if (cache_ovf_mask_a & 0x2000000u) { hexit_relative_step_a[p++] = 25; if (p >= 8) { break; } }
+			if (cache_ovf_mask_a & 0x4000000u) { hexit_relative_step_a[p++] = 26; if (p >= 8) { break; } }
+			if (cache_ovf_mask_a & 0x8000000u) { hexit_relative_step_a[p++] = 27; if (p >= 8) { break; } }
+
+			if (cache_ovf_mask_a & 0x10000000u) { hexit_relative_step_a[p++] = 28; if (p >= 8) { break; } }
+			if (cache_ovf_mask_a & 0x20000000u) { hexit_relative_step_a[p++] = 29; if (p >= 8) { break; } }
+			if (cache_ovf_mask_a & 0x40000000u) { hexit_relative_step_a[p++] = 30; if (p >= 8) { break; } }
+			if (cache_ovf_mask_a & 0x80000000u) { hexit_relative_step_a[p++] = 31; if (p >= 8) { break; } }
+
+		} while (0);
+
+		// Cache values for genome b, pulled out into array 
+		//
+		hexit_b[0] = (lo_cache_b & ((uint32_t)0xf));
+		hexit_b[1] = (lo_cache_b & ((uint32_t)0xf << 4)) >> 4;
+		hexit_b[2] = (lo_cache_b & ((uint32_t)0xf << 8)) >> 8;
+		hexit_b[3] = (lo_cache_b & ((uint32_t)0xf << 12)) >> 12;
+
+		hexit_b[4] = (lo_cache_b & ((uint32_t)0xf << 16)) >> 16;
+		hexit_b[5] = (lo_cache_b & ((uint32_t)0xf << 20)) >> 20;
+		hexit_b[6] = (lo_cache_b & ((uint32_t)0xf << 24)) >> 24;
+		hexit_b[7] = (lo_cache_b & ((uint32_t)0xf << 28)) >> 28;
+
+		hexit_relative_step_b[0] = -1;
+		hexit_relative_step_b[1] = -1;
+		hexit_relative_step_b[2] = -1;
+		hexit_relative_step_b[3] = -1;
+		hexit_relative_step_b[4] = -1;
+		hexit_relative_step_b[5] = -1;
+		hexit_relative_step_b[6] = -1;
+		hexit_relative_step_b[7] = -1;
+
+		p = 0;
+		do {
+			if (cache_ovf_mask_b & 0x1u) { hexit_relative_step_b[p++] = 0; }
+			if (cache_ovf_mask_b & 0x2u) { hexit_relative_step_b[p++] = 1; }
+			if (cache_ovf_mask_b & 0x4u) { hexit_relative_step_b[p++] = 2; }
+			if (cache_ovf_mask_b & 0x8u) { hexit_relative_step_b[p++] = 3; }
+
+			if (cache_ovf_mask_b & 0x10u) { hexit_relative_step_b[p++] = 4; }
+			if (cache_ovf_mask_b & 0x20u) { hexit_relative_step_b[p++] = 5; }
+			if (cache_ovf_mask_b & 0x40u) { hexit_relative_step_b[p++] = 6; }
+			if (cache_ovf_mask_b & 0x80u) { hexit_relative_step_b[p++] = 7; if (p >= 8) { break; } }
+
+			if (cache_ovf_mask_b & 0x100u) { hexit_relative_step_b[p++] = 8; if (p >= 8) { break; } }
+			if (cache_ovf_mask_b & 0x200u) { hexit_relative_step_b[p++] = 9; if (p >= 8) { break; } }
+			if (cache_ovf_mask_b & 0x400u) { hexit_relative_step_b[p++] = 10; if (p >= 8) { break; } }
+			if (cache_ovf_mask_b & 0x800u) { hexit_relative_step_b[p++] = 11; if (p >= 8) { break; } }
+
+			if (cache_ovf_mask_b & 0x1000u) { hexit_relative_step_b[p++] = 12; if (p >= 8) { break; } }
+			if (cache_ovf_mask_b & 0x2000u) { hexit_relative_step_b[p++] = 13; if (p >= 8) { break; } }
+			if (cache_ovf_mask_b & 0x4000u) { hexit_relative_step_b[p++] = 14; if (p >= 8) { break; } }
+			if (cache_ovf_mask_b & 0x8000u) { hexit_relative_step_b[p++] = 15; if (p >= 8) { break; } }
+
+			if (cache_ovf_mask_b & 0x10000u) { hexit_relative_step_b[p++] = 16; if (p >= 8) { break; } }
+			if (cache_ovf_mask_b & 0x20000u) { hexit_relative_step_b[p++] = 17; if (p >= 8) { break; } }
+			if (cache_ovf_mask_b & 0x40000u) { hexit_relative_step_b[p++] = 18; if (p >= 8) { break; } }
+			if (cache_ovf_mask_b & 0x80000u) { hexit_relative_step_b[p++] = 19; if (p >= 8) { break; } }
+
+			if (cache_ovf_mask_b & 0x100000u) { hexit_relative_step_b[p++] = 20; if (p >= 8) { break; } }
+			if (cache_ovf_mask_b & 0x200000u) { hexit_relative_step_b[p++] = 21; if (p >= 8) { break; } }
+			if (cache_ovf_mask_b & 0x400000u) { hexit_relative_step_b[p++] = 22; if (p >= 8) { break; } }
+			if (cache_ovf_mask_b & 0x800000u) { hexit_relative_step_b[p++] = 23; if (p >= 8) { break; } }
+
+			if (cache_ovf_mask_b & 0x1000000u) { hexit_relative_step_b[p++] = 24; if (p >= 8) { break; } }
+			if (cache_ovf_mask_b & 0x2000000u) { hexit_relative_step_b[p++] = 25; if (p >= 8) { break; } }
+			if (cache_ovf_mask_b & 0x4000000u) { hexit_relative_step_b[p++] = 26; if (p >= 8) { break; } }
+			if (cache_ovf_mask_b & 0x8000000u) { hexit_relative_step_b[p++] = 27; if (p >= 8) { break; } }
+
+			if (cache_ovf_mask_b & 0x10000000u) { hexit_relative_step_b[p++] = 28; if (p >= 8) { break; } }
+			if (cache_ovf_mask_b & 0x20000000u) { hexit_relative_step_b[p++] = 29; if (p >= 8) { break; } }
+			if (cache_ovf_mask_b & 0x40000000u) { hexit_relative_step_b[p++] = 30; if (p >= 8) { break; } }
+			if (cache_ovf_mask_b & 0x80000000u) { hexit_relative_step_b[p++] = 31; if (p >= 8) { break; } }
+
+		} while (0);
+
+
+#ifdef CONC_DEBUG
+		if (loc_debug) {
+			printf("  hexit:\n");
+			for (i = 0; i < 8; i++) {
+				printf("  [%i] %i, [%i] %i\n",
+					hexit_relative_step_a[i], hexit_a[i],
+					hexit_relative_step_b[i], hexit_b[i]);
+			}
+		}
+#endif
+		// Cache value testing
+		//
+		// Do a zipper match to count the number of cache overflow hits.
+		// Tile variants that overflow from the cache will be picked
+		// up by the overflow count.
+		//
+		
+		for (i = 0, j = 0; (i < 8) && (j < 8); ) {
+
+			if ((hexit_relative_step_a[i] < 0) || (hexit_relative_step_b[j] < 0)) { break; }
+
+#ifdef CONC_DEBUG
+			if (loc_debug) {
+				printf("  a[%i+%i=%i] %i (%i) ... b[%i+%i=%i] %i (%i)\n",
+					start_block_tile, hexit_relative_step_a[i],
+					start_block_tile + hexit_relative_step_a[i],
+					hexit_a[i], i,
+
+					start_block_tile, hexit_relative_step_b[j],
+					start_block_tile + hexit_relative_step_b[j],
+					hexit_b[j], j);
+		}
+#endif
+
+
+			if (hexit_relative_step_a[i] < hexit_relative_step_b[j]) {
+
+#ifdef CONC_DEBUG
+				if (loc_debug) { printf("  >\n"); }
+#endif
+
+				i++; continue;
+			}
+			if (hexit_relative_step_a[i] > hexit_relative_step_b[j]) {
+
+#ifdef CONC_DEBUG
+				if (loc_debug) { printf("  <\n"); }
+#endif
+
+				j++; continue;
+			}
+			if (hexit_relative_step_a[i] == hexit_relative_step_b[j]) {
+				if ((hexit_a[i] > 0) && (hexit_a[i] < 0xf) &&
+					(hexit_b[j] > 0) && (hexit_b[j] < 0xf) &&
+					(hexit_a[i] == hexit_b[j])) {
+
+					if ((ii > n_q) && (ii < n_q_end)) {
+						block_match++;
+					}
+
+					else if ((ii == n_q) && (ii < n_q_end) &&
+						((start_block_tile + hexit_relative_step_a[i]) >= start_tile_step) &&
+						((start_block_tile + hexit_relative_step_b[j]) >= start_tile_step)) {
+						block_match++;
+					}
+
+					else if ((ii > n_q) && (ii == n_q_end) &&
+						((start_block_tile + hexit_relative_step_a[i]) <= end_tile_step_inc) &&
+						((start_block_tile + hexit_relative_step_b[j]) <= end_tile_step_inc)) {
+						block_match++;
+					}
+
+					else if ((ii == n_q) && (ii == n_q_end) &&
+						((start_block_tile + hexit_relative_step_a[i]) >= start_tile_step) &&
+						((start_block_tile + hexit_relative_step_b[j]) >= start_tile_step) &&
+						((start_block_tile + hexit_relative_step_a[i]) <= end_tile_step_inc) &&
+						((start_block_tile + hexit_relative_step_b[j]) <= end_tile_step_inc)) {
+						block_match++;
+					}
+					// else we skip over and don't count the match
+					// as it falls outside of the selected window
+
+				}
+
+				i++;
+				j++;
+			}
+		}
+
+
+		if (i == 8) {
+			for (; j<8; j++) {
+
+				if (hexit_relative_step_b[j] < 0) { break; }
+				if ((hexit_b[j] == 0) || (hexit_b[j] >= 0xf)) { continue; }
+
+				if (((ii == n_q) &&
+					((start_block_tile + hexit_relative_step_b[j]) < start_tile_step))
+					||
+					((ii == n_q_end) &&
+					((start_block_tile + hexit_relative_step_b[j]) > end_tile_step_inc))
+					) {
+					//do nothing
+				}
+
+			}
+		}
+		else if (j == 8) {
+			for (; i<8; i++) {
+
+				if (hexit_relative_step_a[i] < 0) { break; }
+				if ((hexit_a[i] == 0) || (hexit_a[i] >= 0xf)) { continue; }
+
+				if (((ii == n_q) &&
+					((start_block_tile + hexit_relative_step_a[i]) < start_tile_step))
+					||
+					((ii == n_q_end) &&
+					((start_block_tile + hexit_relative_step_a[i]) > end_tile_step_inc))
+					) {
+				}
+
+			}
+		}
+		
+		// The total number of high quality matches is the number of high quality
+		// tiles both have in common, excluding the non-anchor high quality tiles
+		//
+		block_tot = NumberOfSetBits32(env_mask & hiq_mask_a & hiq_mask_b & (~non_anchor_span_mask_a) & (~non_anchor_span_mask_b));
+
+		r_match_list[ ii - n_q ] = block_match;
+		r_tot_list[ ii - n_q ] = block_tot;
+
+		match += block_match;
+		tot += block_tot;
+	}
+
+	// all done!
+	//
+	*r_match = match;
+	*r_tot = tot;
+
+	return 0;
+}
+

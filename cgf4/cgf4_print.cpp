@@ -1,5 +1,9 @@
 #include "cgf4.hpp"
 
+#ifdef WIN32
+	#define PRIu64	"lld"
+#endif
+
 void cgf_print(cgf_t *cgf) {
   int i, j, n, prev_sum=0;
   size_t sz;
@@ -97,6 +101,7 @@ void cgf_print(cgf_t *cgf) {
     }
     printf("\n");
 
+#ifdef USE_SDSL
     printf("  LoqHom_Size: %llu %llu %llu %llu %llu\n",
         (unsigned long long int)tp->LoqTileStepHomSize,
         (unsigned long long int)tp->LoqTileVariantHomSize,
@@ -179,7 +184,7 @@ void cgf_print(cgf_t *cgf) {
       printf("}");
     }
     printf("\n");
-
+#endif
 
 
 
@@ -461,6 +466,8 @@ int cgf_output_band_format(cgf_t *cgf, int tilepath_idx, FILE *fp, int hiq) {
     variant_v[1][tilestep] = varb;
   }
 
+#ifdef USE_SDSL
+
   if (output_noc) {
 
     int prev_noc_start = 0;
@@ -519,6 +526,7 @@ int cgf_output_band_format(cgf_t *cgf, int tilepath_idx, FILE *fp, int hiq) {
 
     }
   }
+#endif
 
   // output all vectors
   //
@@ -552,9 +560,13 @@ int cgf_output_band_format(cgf_t *cgf, int tilepath_idx, FILE *fp, int hiq) {
 
 #define _ZCHUNK 16384
 
+
+
 // takenf rom http://zlib.net/zpipe.c (public domain by Mark Adler)
 //
 int _infz(std::vector< uint8_t > &src, std::vector< uint8_t > &dst) {
+
+#ifdef USE_ZSTREAM
   int i, ret;
   unsigned int have;
   z_stream strm;
@@ -607,6 +619,10 @@ int _infz(std::vector< uint8_t > &src, std::vector< uint8_t > &dst) {
 
   (void)inflateEnd(&strm);
   return ret == Z_STREAM_END ? Z_OK : Z_DATA_ERROR;
+
+#else
+	return 0;	// fail, no zstream
+#endif
 }
 
 //-----
@@ -823,6 +839,7 @@ int cgf_output_band_format2(cgf_t *cgf, int tilepath_idx, FILE *fp, int step_sta
     }
   }
 
+#ifdef USE_SDSL
   if (fill_level & 8) {
 
     int prev_noc_start = 0;
@@ -881,6 +898,7 @@ int cgf_output_band_format2(cgf_t *cgf, int tilepath_idx, FILE *fp, int step_sta
 
     }
   }
+#endif
 
   // output all vectors
   //
@@ -1165,12 +1183,12 @@ void cgf4_print_header_json(cgf_t *cgf, FILE *ofp) {
     fprintf(ofp, "[[");
     for (j=prv; j<cgf->TileMapCache.offset[i]; j++) {
       if (j>prv) { fprintf(ofp, ","); }
-      fprintf(ofp, "%i", cgf->TileMapCache.variant[0][j]);
+	  if (j<cgf->TileMapCache.variant[0].size()) fprintf(ofp, "%i", cgf->TileMapCache.variant[0][j]);
     }
     fprintf(ofp, "],[");
     for (j=prv; j<cgf->TileMapCache.offset[i]; j++) {
       if (j>prv) { fprintf(ofp, ","); }
-      fprintf(ofp, "%i", cgf->TileMapCache.variant[1][j]);
+      if (j<cgf->TileMapCache.variant[1].size()) fprintf(ofp, "%i", cgf->TileMapCache.variant[1][j]);
     }
     fprintf(ofp, "]]");
 

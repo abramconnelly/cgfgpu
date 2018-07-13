@@ -64,7 +64,7 @@ char DEFAULT_TILEMAP[] = \
     "0+2:14+2\n14+2:0+2\n1;0;0:7+3\n7+3:1;0;0\n3;0;0:0+3\n0+3:3;0;0\n1;2:3+2\n3+2:1;2\n2;0:b+2\nb+2:2;0\n0;0+2:4+3\n4+3:0;0+2\n3:13\n13:3\n2:1a\n1a:2\n" \
     "0;0:2c+2\n2c+2:0;0\n0:70\n70:0\n3:14\n14:3\n2+2:b+2\nb+2:2+2\n2:1b\n1b:2\n0:6d\n6d:0\n0;3:6+2\n6+2:0;3\n0;0:26+2\n26+2:0;0\n" \
     "1;0:14+2\n14+2:1;0\n4:12\n12:4\n0:6f\n6f:0\n1:30\n30:1\nc:d\nd:c\n3;2:0+2\n0+2:3;2\n2:1c\n1c:2\n0;0;0:c+3\nc+3:0;0;0\n" \
-    "3;1:2+2\n2+2:3;1\n0;0;0;0:3+4\n3+4:0;0;0;0\n7:c\nc:7\n2+2:a+2\na+2:2+2\n4;1:1+2\n1+2:4;1\n13:13\n0:75\n75:0\n0:71\n71:0\n3+2:8+2" ;
+    "3;1:2+2\n2+2:3;1\n0;0;0;0:3+4\n3+4:0;0;0;0\n7:c\nc:7\n2+2:a+2\na+2:2+2\n4;1:1+2\n1+2:4;1\n13:13\n0:75\n75:0\n0:71\n71:0\n3+2:8+2\n" ;
 
 
 const char *read_tilemap_from_file(std::string &tilemap_str, const char *fn) {
@@ -103,6 +103,11 @@ int str2tilemap(std::string &s, tilemap_t *tilemap) {
   cur_allele=0;
   idx=0;
   while (idx<s.size()) {
+	// printf("tilemap: %d of %d\n", idx, s.size());	// debugging
+	if (s[idx] == '\r') {
+	   idx++;
+	   continue;
+	}
     if (s[idx]=='\n')  {
       tilemap->offset.push_back((int)tilemap->variant[0].size());
       idx++;
@@ -202,5 +207,6 @@ int str2tilemap(std::string &s, tilemap_t *tilemap) {
 //
 //  printf("\n");
 
+  return 1;
 }
 

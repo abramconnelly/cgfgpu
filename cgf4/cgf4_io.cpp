@@ -24,6 +24,8 @@ struct membuf : std::streambuf {
   membuf(char *beg, char *end) { this->setg(beg, beg, end); }
 };
 
+#ifdef USE_SDSL
+
 static int _read_vlc_vector(sdsl::vlc_vector<> &vlc, size_t sz, FILE *fp) {
   size_t s;
   int ch;
@@ -88,6 +90,7 @@ static int _write_enc_vector(sdsl::enc_vector<> &enc, FILE *fp) {
 
   return 0;
 }
+#endif
 
 static uint64_t _calc_path_size(tilepath_t *tilepath) {
   int i, j, k;
@@ -109,6 +112,7 @@ static uint64_t _calc_path_size(tilepath_t *tilepath) {
 
   // The SDSL structure sizes
   //
+#ifdef USE_SDSL
   byte_count += (uint64_t)(sdsl::size_in_bytes(tilepath->LoqTileStepHom));
   byte_count += (uint64_t)(sdsl::size_in_bytes(tilepath->LoqTileVariantHom));
   byte_count += (uint64_t)(sdsl::size_in_bytes(tilepath->LoqTileNocSumHom));
@@ -120,6 +124,7 @@ static uint64_t _calc_path_size(tilepath_t *tilepath) {
   byte_count += (uint64_t)(sdsl::size_in_bytes(tilepath->LoqTileNocSumHet));
   byte_count += (uint64_t)(sdsl::size_in_bytes(tilepath->LoqTileNocStartHet));
   byte_count += (uint64_t)(sdsl::size_in_bytes(tilepath->LoqTileNocLenHet));
+#endif
 
   return byte_count;
 }
@@ -159,10 +164,8 @@ size_t gcgf_tilepath_read(cgf_t *cgf, int tilepath_idx, FILE *fp) {
   if (sz!=1) { return -1; }
   tilepath->Name.clear();
   tilepath->Name.resize(u32);
-  if (tilepath->Name.size() > 0) {
-    sz = fread(&(tilepath->Name[0]), sizeof(char), u32, fp);
-    if (sz!=u32) { return -1; }
-  }
+  sz = fread(&(tilepath->Name[0]), sizeof(char), u32, fp);
+  if (sz!=u32) { return -1; }
 
   // Extra Data (size and bytes
   //
@@ -170,9 +173,9 @@ size_t gcgf_tilepath_read(cgf_t *cgf, int tilepath_idx, FILE *fp) {
   if (sz!=1) { return -1; }
   tilepath->ExtraDataSize = u64;
   tilepath->ExtraData.resize(u64);
-  if (tilepath->ExtraData.size() > 0) {
-    sz = fread(&(tilepath->ExtraData[0]), sizeof(char), u64, fp);
-    if (sz!=u64) { return -1; }
+  if ( tilepath->ExtraData.size() > 0 ) {
+	sz = fread(&(tilepath->ExtraData[0]), sizeof(char), u64, fp);
+	if (sz!=u64) { return -1; }
   }
 
   // Size of SDSL homozygous arrays
@@ -224,7 +227,7 @@ size_t gcgf_tilepath_read(cgf_t *cgf, int tilepath_idx, FILE *fp) {
 
   // Read SDSL structures in
   //
-
+#ifdef USE_SDSL
   if (tilepath->LoqTileStepHomSize>0) {
     k = _read_enc_vector(tilepath->LoqTileStepHom, tilepath->LoqTileStepHomSize, fp);
     if (k<0) { return k; }
@@ -276,6 +279,7 @@ size_t gcgf_tilepath_read(cgf_t *cgf, int tilepath_idx, FILE *fp) {
     k = _read_vlc_vector(tilepath->LoqTileNocLenHet, tilepath->LoqTileNocLenHetSize, fp);
     if (k<0) { return k; }
   }
+#endif
 
   return 0;
 }
@@ -433,6 +437,7 @@ cgf_t *cgf_read_hiq(FILE *fp) {
   return cgf;
 
 cgf_read_hiq_error:
+  if (feof(fp)) { printf("Unexpected end-of-file.\n"); }
   if (cgf) { delete cgf; }
   return NULL;
 
@@ -611,7 +616,7 @@ void cgf_create_container(FILE *fp,
   cgf_version = (cgf_version ? cgf_version : CGF_VERSION);
   cglf_version = (cglf_version ? cglf_version : CGLF_VERSION);
 
-  // CGF magci string
+  // CGF magic string
   //
   fwrite(CGF_MAGIC, sizeof(char), 8, fp);
 
@@ -633,7 +638,7 @@ void cgf_create_container(FILE *fp,
   fwrite(&u64, sizeof(uint64_t), 1, fp);
 
   // TileMap (as string)
-  u32 = (uint32_t)strlen(tilemap);
+  u32 = (uint32_t) strlen(tilemap);
   fwrite(&u32, sizeof(uint32_t), 1, fp);
   fwrite(tilemap, sizeof(char), u32, fp);
 
@@ -803,11 +808,11 @@ uint64_t cgf_write_to_file(cgf_t *cgf, const char *ofn) {
 
       // low quality hom structures
       //
+#ifdef USE_SDSL
+	  k = _write_enc_vector(tilepath->LoqTileStepHom, ofp);
+      if (k<0) { return -1; }
 
-    k = _write_enc_vector(tilepath->LoqTileStepHom, ofp);
-    if (k<0) { return -1; }
-
-    k = _write_vlc_vector(tilepath->LoqTileVariantHom, ofp);
+      k = _write_vlc_vector(tilepath->LoqTileVariantHom, ofp);
       if (k<0) { return -1; }
 
       k = _write_enc_vector(tilepath->LoqTileNocSumHom, ofp);
@@ -848,6 +853,7 @@ uint64_t cgf_write_to_file(cgf_t *cgf, const char *ofn) {
       byte_count += (uint64_t)(sdsl::size_in_bytes(tilepath->LoqTileNocSumHet));
       byte_count += (uint64_t)(sdsl::size_in_bytes(tilepath->LoqTileNocStartHet));
       byte_count += (uint64_t)(sdsl::size_in_bytes(tilepath->LoqTileNocLenHet));
+#endif
 
     }
 
