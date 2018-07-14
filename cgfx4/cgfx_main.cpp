@@ -54,28 +54,28 @@ int cgfx_main(int argc, char **argv)
 
 	CGFX_t cgfx;
 
-	int num = 16;
+	int num = 8;
 
 	cgfx.Initialize(201, 10669088);
 	cgfx.Reserve( num );
 
-	cgfx.LoadCgf4("D:\\Codes\\cgfgpu_new\\data\\HG00472-GS000016706-ASM.cgfv4");
-	cgfx.LoadCgf4("D:\\Codes\\cgfgpu_new\\data\\HG02147-GS000016341-ASM.cgfv4");
-	cgfx.LoadCgf4("D:\\Codes\\cgfgpu_new\\data\\hu4BF398-GS01175-DNA_A06.cgfv4");
-	cgfx.LoadCgf4("D:\\Codes\\cgfgpu_new\\data\\hu34D5B9-GS01173-DNA_C07.cgfv4");
-	cgfx.LoadCgf4("D:\\Codes\\cgfgpu_new\\data\\hu34D5B9-GS01670-DNA_E02.cgfv4");
-	cgfx.LoadCgf4("D:\\Codes\\cgfgpu_new\\data\\hu826751-GS03052-DNA_B01.cgfv4");
-	cgfx.LoadCgf4("D:\\Codes\\cgfgpu_new\\data\\huFFB09D-GS01669-DNA_D04.cgfv4");
-	cgfx.LoadCgf4("D:\\Codes\\cgfgpu_new\\data\\NA12776-GS000016396-ASM.cgfv4");
+	cgfx.LoadCgf4("data/HG00472-GS000016706-ASM.cgfv4");
+	cgfx.LoadCgf4("data/HG02147-GS000016341-ASM.cgfv4");
+	cgfx.LoadCgf4("data/hu4BF398-GS01175-DNA_A06.cgfv4");
+	cgfx.LoadCgf4("data/hu34D5B9-GS01173-DNA_C07.cgfv4");
+	cgfx.LoadCgf4("data/hu34D5B9-GS01670-DNA_E02.cgfv4");
+	cgfx.LoadCgf4("data/hu826751-GS03052-DNA_B01.cgfv4");
+	cgfx.LoadCgf4("data/huFFB09D-GS01669-DNA_D04.cgfv4");
+	cgfx.LoadCgf4("data/NA12776-GS000016396-ASM.cgfv4");
 
-	cgfx.LoadCgf4("D:\\Codes\\cgfgpu_new\\data\\HG00472-GS000016706-ASM.cgfv4");
-	cgfx.LoadCgf4("D:\\Codes\\cgfgpu_new\\data\\HG02147-GS000016341-ASM.cgfv4");
-	cgfx.LoadCgf4("D:\\Codes\\cgfgpu_new\\data\\hu4BF398-GS01175-DNA_A06.cgfv4");
-	cgfx.LoadCgf4("D:\\Codes\\cgfgpu_new\\data\\hu34D5B9-GS01173-DNA_C07.cgfv4");
-	cgfx.LoadCgf4("D:\\Codes\\cgfgpu_new\\data\\hu34D5B9-GS01670-DNA_E02.cgfv4");
-	cgfx.LoadCgf4("D:\\Codes\\cgfgpu_new\\data\\hu826751-GS03052-DNA_B01.cgfv4");
-	cgfx.LoadCgf4("D:\\Codes\\cgfgpu_new\\data\\huFFB09D-GS01669-DNA_D04.cgfv4");
-	cgfx.LoadCgf4("D:\\Codes\\cgfgpu_new\\data\\NA12776-GS000016396-ASM.cgfv4");
+/*	cgfx.LoadCgf4("data/HG00472-GS000016706-ASM.cgfv4");
+	cgfx.LoadCgf4("data/HG02147-GS000016341-ASM.cgfv4");
+	cgfx.LoadCgf4("data/hu4BF398-GS01175-DNA_A06.cgfv4");
+	cgfx.LoadCgf4("data/hu34D5B9-GS01173-DNA_C07.cgfv4");
+	cgfx.LoadCgf4("data/hu34D5B9-GS01670-DNA_E02.cgfv4");
+	cgfx.LoadCgf4("data/hu826751-GS03052-DNA_B01.cgfv4");
+	cgfx.LoadCgf4("data/huFFB09D-GS01669-DNA_D04.cgfv4"); 
+	cgfx.LoadCgf4("data/NA12776-GS000016396-ASM.cgfv4"); */
 
 
 	cgfx.SetConcordanceRange(start, 0, end, 34);
@@ -91,22 +91,25 @@ int cgfx_main(int argc, char **argv)
 
 	fwrite(&num, 1, sizeof(int), fp);		// number of groups
 
-	PERF_PUSH("GPU");
-	//for (int i = 0; i < num; i++) {
 	int i = 0;
-		cgfx.ConcordanceGPU( i );
-		
-		for (int j = 0; j < num; j++)
-			cgfx.Concordance(i, j, j);
 
-		int sz = cgfx.getMatchSize();
+	PERF_PUSH("GPU");
+	cgfx.ConcordanceGPU( i );
+	cuCtxSynchronize();
+	PERF_POP();
+		
+	PERF_PUSH("CPU");
+	for (int j = 0; j < num; j++) {
+		cgfx.Concordance(i, j, j);
+
+/*		int sz = cgfx.getMatchSize();
 		fwrite(&num, 1, sizeof(int), fp);	// number of concordances in group
 		fwrite(&sz, 1, sizeof(int), fp);	// number of entries
 		for (int j = 0; j < num; j++) {
 			fwrite( cgfx.getMatchList(j), 1, sz, fp);
-			fwrite( cgfx.getTotalList(j), 1, sz, fp);
-		}
-	//}
+			fwrite( cgfx.getTotalList(j), 1, sz, fp); 
+		} */
+	}
 	PERF_POP();
 
 	fclose(fp);
