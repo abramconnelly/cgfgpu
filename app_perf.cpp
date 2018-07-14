@@ -136,7 +136,7 @@ void PERF_PUSH ( const char* msg )
 	if ( g_perfCPU ) {
 		if ( ++g_perfLevel < g_perfPrintLev ) {
 			strncpy ( (char*) g_perfMsg[ g_perfLevel ], msg, 256 );
-			g_perfStack [ g_perfLevel ] = TimeX::GetSystemNSec ();				
+			g_perfStack [ g_perfLevel ] = TimeX::GetSystemMSec ();				
 			if ( g_perfConsOut ) PERF_PRINTF ( "%*s%s\n", g_perfLevel <<1, "", msg );
 			if ( g_perfFile != 0x0 ) fprintf ( g_perfFile, "%*s%s\n", g_perfLevel <<1, "", msg );
 		}		
@@ -149,7 +149,7 @@ float PERF_POP ()
 	#endif
 	if ( g_perfCPU ) {
 		if ( g_perfLevel < g_perfPrintLev) {
-			sjtime curr = TimeX::GetSystemNSec ();
+			sjtime curr = TimeX::GetSystemMSec ();
 			curr -= g_perfStack [ g_perfLevel ];		
 			if ( g_perfConsOut ) PERF_PRINTF ( "%*s%s: %f ms\n", g_perfLevel <<1, "", g_perfMsg[g_perfLevel], ((float) curr)/MSEC_SCALAR );		
 			if ( g_perfFile != 0x0 ) fprintf ( g_perfFile, "%*s%s: %f ms\n", g_perfLevel <<1, "", g_perfMsg[g_perfLevel], ((float) curr)/MSEC_SCALAR );
