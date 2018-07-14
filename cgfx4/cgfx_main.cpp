@@ -87,7 +87,7 @@ int cgfx_main(int argc, char **argv)
 	PERF_POP();
 
 	PERF_PUSH("CPU");
-	for (int j = 0; j < num; j++)
+	for (int j = 0; j < num_genomes; j++)
 		cgfx.Concordance(i, j, j);
 	PERF_POP();
 
