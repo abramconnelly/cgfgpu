@@ -137,7 +137,7 @@ void CGFX_t::LoadCgf4 (char* fname)
 	chk[1] = mm.Alloc(mCacheVec);
 	chk[2] = mm.Alloc(mLoqVec);
 	chk[3] = mm.Alloc(mSpanVec);
-	assert (id == chk[1] == chk[2] == chk[3]);
+	assert ( (id == chk[1]) && (id == chk[2]) && (id == chk[3]) );
 
 	// Transfer cgf4 bit-vectors into cohort
 	memcpy ( mm.getCPU(mCanonVec, id),	&cgf->Canon[0], mBitvecSize);

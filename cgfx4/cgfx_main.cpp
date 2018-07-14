@@ -90,24 +90,26 @@ int cgfx_main(int argc, char **argv)
 	FILE* fp = fopen("concord.raw", "wb");
 
 	fwrite(&num, 1, sizeof(int), fp);		// number of groups
-
-	PERF_PUSH("GPU");
-	//for (int i = 0; i < num; i++) {
+	
 	int i = 0;
-		cgfx.ConcordanceGPU( i );
-		
-		for (int j = 0; j < num; j++)
-			cgfx.Concordance(i, j, j);
-
-		int sz = cgfx.getMatchSize();
-		fwrite(&num, 1, sizeof(int), fp);	// number of concordances in group
-		fwrite(&sz, 1, sizeof(int), fp);	// number of entries
-		for (int j = 0; j < num; j++) {
-			fwrite( cgfx.getMatchList(j), 1, sz, fp);
-			fwrite( cgfx.getTotalList(j), 1, sz, fp);
-		}
-	//}
+	
+	PERF_PUSH("GPU");
+	cgfx.ConcordanceGPU( i );
 	PERF_POP();
+		
+	PERF_PUSH("CPU");
+	for (int j = 0; j < num; j++)
+		cgfx.Concordance(i, j, j);
+	PERF_POP();
+
+	int sz = cgfx.getMatchSize();
+	fwrite(&num, 1, sizeof(int), fp);	// number of concordances in group
+	fwrite(&sz, 1, sizeof(int), fp);	// number of entries
+	for (int j = 0; j < num; j++) {
+		fwrite( cgfx.getMatchList(j), 1, sz, fp);
+		fwrite( cgfx.getTotalList(j), 1, sz, fp);
+	}
+	
 
 	fclose(fp);
 

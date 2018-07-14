@@ -68,7 +68,7 @@ file(GLOB CUDA_FILES "${_KERNEL_SEARCH_PATH}/*.cu" "${_KERNEL_SEARCH_PATH}/*.cuh
 message ( STATUS "Kernels Search Path: ${_KERNEL_SEARCH_PATH}" )
 message ( STATUS "Kernels CUDA Build:  ${CUDA_FILES}" )
 
-_COMPILEPTX ( SOURCES ${CUDA_FILES} TARGET_PATH ${EXECUTABLE_OUTPUT_PATH} GENERATED CUDA_PTX GENPATHS CUDA_PTX_PATHS INCLUDE "${CMAKE_CURRENT_SOURCE_DIR},${GVDB_INCLUDE_DIR}" OPTIONS -arch=compute_35 -code=sm_35 --ptxas-options=-v -O3 --use_fast_math )
+_COMPILEPTX ( SOURCES ${CUDA_FILES} TARGET_PATH ${EXECUTABLE_OUTPUT_PATH} GENERATED CUDA_PTX GENPATHS CUDA_PTX_PATHS INCLUDE "${CMAKE_CURRENT_SOURCE_DIR},${GVDB_INCLUDE_DIR}" OPTIONS -arch=compute_30 -code=sm_30 --ptxas-options=-v -O3 --use_fast_math )
 
 #####################################################################################
 # Asset Path
