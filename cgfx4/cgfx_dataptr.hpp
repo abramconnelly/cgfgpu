@@ -2,13 +2,13 @@
 #ifndef DEF_DATAPTR
 	#define DEF_DATAPTR
 
-	#include <stdint.h>
+	#include <stdio.h>
+	#include <stdlib.h>
 
 	#ifdef WIN32
 		#include <unistd_win.h>
 		#include <getopt_win.h>
 		#include <time.h>
-
 
 		typedef uint32_t			uint32;
 		typedef uint64_t			uint64;
