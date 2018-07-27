@@ -31,15 +31,19 @@ set( CMAKE_INSTALL_PREFIX "${CMAKE_CURRENT_BINARY_DIR}" CACHE PATH "Install path
 include( ${CMAKE_MODULE_PATH}/Helpers.cmake )     
 include( ${CMAKE_MODULE_PATH}/Packages.cmake )   
 
-set ( USE_NVTX CACHE BOOL "NSight markers")
+set ( USE_NVTX FALSE CACHE BOOL "NSight markers")
 if ( USE_NVTX )
 	add_definitions(-DUSE_NVTX)
 endif()
 
+set ( USE_CUDA FALSE CACHE BOOL "Use CUDA" )
+
 ####################################################################################
 # Add CUDA
 #
-_add_package_CUDA()
+if ( USE_CUDA) 
+  _add_package_CUDA()
+endif()
 
 ####################################################################################
 # Find SDSL
@@ -63,12 +67,14 @@ endif()
 ####################################################################################
 # Compile PTX Files
 #
-get_filename_component ( _KERNEL_SEARCH_PATH "${BASE_DIRECTORY}/cgfx4" REALPATH )
-file(GLOB CUDA_FILES "${_KERNEL_SEARCH_PATH}/*.cu" "${_KERNEL_SEARCH_PATH}/*.cuh")
-message ( STATUS "Kernels Search Path: ${_KERNEL_SEARCH_PATH}" )
-message ( STATUS "Kernels CUDA Build:  ${CUDA_FILES}" )
+if ( USE_CUDA) 
+	get_filename_component ( _KERNEL_SEARCH_PATH "${BASE_DIRECTORY}/cgfx4" REALPATH )
+	file(GLOB CUDA_FILES "${_KERNEL_SEARCH_PATH}/*.cu" "${_KERNEL_SEARCH_PATH}/*.cuh")
+	message ( STATUS "Kernels Search Path: ${_KERNEL_SEARCH_PATH}" )
+	message ( STATUS "Kernels CUDA Build:  ${CUDA_FILES}" )
 
-_COMPILEPTX ( SOURCES ${CUDA_FILES} TARGET_PATH ${EXECUTABLE_OUTPUT_PATH} GENERATED CUDA_PTX GENPATHS CUDA_PTX_PATHS INCLUDE "${CMAKE_CURRENT_SOURCE_DIR},${GVDB_INCLUDE_DIR}" OPTIONS -arch=compute_30 -code=sm_30 --ptxas-options=-v -O3 --use_fast_math )
+	_COMPILEPTX ( SOURCES ${CUDA_FILES} TARGET_PATH ${EXECUTABLE_OUTPUT_PATH} GENERATED CUDA_PTX GENPATHS CUDA_PTX_PATHS INCLUDE "${CMAKE_CURRENT_SOURCE_DIR},${GVDB_INCLUDE_DIR}" OPTIONS -arch=compute_30 -code=sm_30 --ptxas-options=-v -O3 --use_fast_math )
+endif()
 
 #####################################################################################
 # Asset Path
@@ -110,7 +116,9 @@ _MSVC_PROPERTIES()
 # Install Binaries and PTX
 #
 _DEFAULT_INSTALL_PATH()
-_INSTALL_PTX ( FILES ${CUDA_PTX_PATHS} DESTINATION ${EXECUTABLE_OUTPUT_PATH} OUTPUT INSTALL_LIST )
+if ( USE_CUDA) 
+   _INSTALL_PTX ( FILES ${CUDA_PTX_PATHS} DESTINATION ${EXECUTABLE_OUTPUT_PATH} OUTPUT INSTALL_LIST )
+endif()
 
 # Install to output location
 install ( FILES ${INSTALL_LIST} DESTINATION ${BIN_INSTALL_PATH} )

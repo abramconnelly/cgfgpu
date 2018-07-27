@@ -13,74 +13,75 @@
 						PERF_POP(); 
 	*/					
 
-				
-bool cudaCheck(CUresult status, char* msg)
-{
-	if (status != CUDA_SUCCESS) {
-		const char* stat = "";
-		cuGetErrorString(status, &stat);
-		printf("CUDA ERROR: #%d %s (in %s)\n", status, stat, msg);
-		exit(-1);
-		return false;
-	}
-	return true;
-}
+#ifdef USE_CUDA
 
-void cudaStart (int devsel, CUdevice& dev, CUcontext& ctx, bool verbose)
-{
-	// NOTES:
-	// CUDA and OptiX Interop: (from Programming Guide 3.8.0)
-	// - CUDA must be initialized using run-time API
-	// - CUDA may call driver API, but only after context created with run-time API
-	// - Once app created CUDA context, OptiX will latch onto the existing CUDA context owned by run-time API
-	// - Alternatively, OptiX can create CUDA context. Then set runtime API to it. (This is how Ocean SDK sample works.)
-
-	int version = 0;
-	char name[128];
-
-	int cnt = 0;
-	CUdevice dev_id;
-	cuInit(0);
-
-	//--- List devices
-	cuDeviceGetCount(&cnt);
-	if (cnt == 0) {
-		printf("ERROR: No CUDA devices found.\n");
-		dev = NULL; ctx = NULL;
-		return;
-	}
-	if (verbose) printf("  Device List:\n");
-	for (int n = 0; n < cnt; n++) {
-		cuDeviceGet(&dev_id, n);
-		cuDeviceGetName(name, 128, dev_id);
-		if (verbose) printf("   %d. %s\n", n, name);
+	bool cudaCheck(CUresult status, char* msg)
+	{
+		if (status != CUDA_SUCCESS) {
+			const char* stat = "";
+			cuGetErrorString(status, &stat);
+			printf("CUDA ERROR: #%d %s (in %s)\n", status, stat, msg);
+			exit(-1);
+			return false;
+		}
+		return true;
 	}
 
-	devsel = 0;
-	if (devsel >= 0) {
-		//--- Create new context with Driver API 
-		cudaCheck(cuDeviceGet(&dev, devsel), "cuDeviceGet");
-		cudaCheck(cuCtxCreate(&ctx, CU_CTX_SCHED_AUTO, dev), "cuCtxCreate");
+	void cudaStart (int devsel, CUdevice& dev, CUcontext& ctx, bool verbose)
+	{
+		// NOTES:
+		// CUDA and OptiX Interop: (from Programming Guide 3.8.0)
+		// - CUDA must be initialized using run-time API
+		// - CUDA may call driver API, but only after context created with run-time API
+		// - Once app created CUDA context, OptiX will latch onto the existing CUDA context owned by run-time API
+		// - Alternatively, OptiX can create CUDA context. Then set runtime API to it. (This is how Ocean SDK sample works.)
+
+		int version = 0;
+		char name[128];
+
+		int cnt = 0;
+		CUdevice dev_id;
+		cuInit(0);
+
+		//--- List devices
+		cuDeviceGetCount(&cnt);
+		if (cnt == 0) {
+			printf("ERROR: No CUDA devices found.\n");
+			dev = NULL; ctx = NULL;
+			return;
+		}
+		if (verbose) printf("  Device List:\n");
+		for (int n = 0; n < cnt; n++) {
+			cuDeviceGet(&dev_id, n);
+			cuDeviceGetName(name, 128, dev_id);
+			if (verbose) printf("   %d. %s\n", n, name);
+		}
+
+		devsel = 0;
+		if (devsel >= 0) {
+			//--- Create new context with Driver API 
+			cudaCheck(cuDeviceGet(&dev, devsel), "cuDeviceGet");
+			cudaCheck(cuCtxCreate(&ctx, CU_CTX_SCHED_AUTO, dev), "cuCtxCreate");
+		}
+		cuDeviceGetName(name, 128, dev);
+		if (verbose) printf("   Using Device: %d, %s, Context: %p\n", (int)dev, name, (void*)ctx);
+
+		cuCtxSetCurrent(NULL);
+		cuCtxSetCurrent(ctx);
 	}
-	cuDeviceGetName(name, 128, dev);
-	if (verbose) printf("   Using Device: %d, %s, Context: %p\n", (int)dev, name, (void*)ctx);
 
-	cuCtxSetCurrent(NULL);
-	cuCtxSetCurrent(ctx);
-}
-
-float cudaGetMemUsage(bool verbose)
-{
-	size_t free, total;
+	float cudaGetMemUsage(bool verbose)
+	{
+		size_t free, total;
 	
-	cuMemGetInfo(&free, &total);
-	float freeMB = free / (1024.0f*1024.0f);		// MB
-	float totalMB = total / (1024.0f*1024.0f);
+		cuMemGetInfo(&free, &total);
+		float freeMB = free / (1024.0f*1024.0f);		// MB
+		float totalMB = total / (1024.0f*1024.0f);
 	
-	if (verbose) printf("GPU memory: %5.2fMB used, %5.2MB total\n", totalMB - freeMB, totalMB);
-	return totalMB - freeMB;		// used
-}
-
+		if (verbose) printf("GPU memory: %5.2fMB used, %5.2MB total\n", totalMB - freeMB, totalMB);
+		return totalMB - freeMB;		// used
+	}
+#endif
 
 void CGFX_t::Initialize(int tile_res, int tilesteps_per_genome)
 {
@@ -93,18 +94,22 @@ void CGFX_t::Initialize(int tile_res, int tilesteps_per_genome)
 	mTilesPerGenome = 10669088;
 	mTilepathPerGenome = 862;
 	mBlocksPerGenome = mTilesPerGenome / 32;
-
-	// Start CUDA
-	cudaStart(0, mCuDevice, mCuContext, mbVerbose);
+	
+	#ifdef USE_CUDA
+		// Start CUDA
+		cudaStart(0, mCuDevice, mCuContext, mbVerbose);
+	#endif
 
 	// Cache offset optimization table
 	if (mbVerbose) printf("Building table.\n");
 	BuildTable();
 
 	// Load CUDA kernels
-	if (mbVerbose) printf("Loading CUDA kernels.\n");
-	cudaCheck(cuModuleLoad(&mCuModule, "kernel.ptx"), "cuModuleLoad");
-	cudaCheck(cuModuleGetFunction(&mCuConcordanceKernel, mCuModule, "concordanceKernel"), "cuModuleGetFunction (concordance)");
+	#ifdef USE_CUDA
+		if (mbVerbose) printf("Loading CUDA kernels.\n");
+		cudaCheck(cuModuleLoad(&mCuModule, "kernel.ptx"), "cuModuleLoad");
+		cudaCheck(cuModuleGetFunction(&mCuConcordanceKernel, mCuModule, "concordanceKernel"), "cuModuleGetFunction (concordance)");
+	#endif	
 }
 
 void CGFX_t::Resize (int num)
@@ -218,11 +223,13 @@ void CGFX_t::LoadCgf4 (char* fname)
 	mm.SetDataCPU (mOverflowAllocVec, id, 0, cpu_addr, sizeof(uint64_t));	// add to pointer table
 	memcpy(cpu_data, overflow, sz_overflow);								// transfer data 
 
-	CUdeviceptr gpu_data;
-	cuMemAlloc (&gpu_data, sz_overflow);									// alloc overflow data
-	char** gpu_addr = (char**) gpu_data;									// pointer to address
-	mm.SetDataGPU(mOverflowAllocVec, id, 0, gpu_addr, sizeof(uint64_t));	// add to pointer table
-	cuMemcpyHtoD(gpu_data, overflow, sz_overflow);							// transfer data
+	#ifdef USE_CUDA
+		CUdeviceptr gpu_data;
+		cuMemAlloc (&gpu_data, sz_overflow);									// alloc overflow data
+		char** gpu_addr = (char**) gpu_data;									// pointer to address
+		mm.SetDataGPU(mOverflowAllocVec, id, 0, gpu_addr, sizeof(uint64_t));	// add to pointer table
+		cuMemcpyHtoD(gpu_data, overflow, sz_overflow);							// transfer data
+	#endif	
 
 	// Commit vectors to GPU
 	mm.Commit(mCanonVec);
@@ -874,8 +881,12 @@ int CGFX_t::ConcordanceGPU ( int cgfa )
 	};
 	PERF_PUSH("ConcordanceGPU");
 	clock_t t = clock();
-	cudaCheck( cuLaunchKernel(mCuConcordanceKernel, grid_x, grid_y, 1, thread_x, thread_y, 1, 0, NULL, args, NULL), "cuLaunchKernel (concordance)");
-	cuCtxSynchronize();
+	#ifdef USE_CUDA
+		cudaCheck( cuLaunchKernel(mCuConcordanceKernel, grid_x, grid_y, 1, thread_x, thread_y, 1, 0, NULL, args, NULL), "cuLaunchKernel (concordance)");
+		cuCtxSynchronize();
+	#else
+		printf("CUDA NOT ENABLED.\n");
+	#endif
 	t = clock() - t;
 	PERF_POP();
 	
@@ -900,8 +911,6 @@ int CGFX_t::ConcordanceGPU ( int cgfa )
 
 		}
 	}
-
-	cudaGetMemUsage( mbVerbose );
 
 	return 1;
 }

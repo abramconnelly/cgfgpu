@@ -65,13 +65,16 @@ public:
 
 	Allocator	mm;
 
-	CUdevice	mCuDevice;				// CUDA
-	CUcontext	mCuContext;
-	CUmodule	mCuModule;				
-	CUfunction	mCuConcordanceKernel;
-
 	bool		mbVerbose;
 	int			mStartView;
+
+	#ifdef USE_CUDA
+		CUdevice	mCuDevice;				// CUDA
+		CUcontext	mCuContext;
+		CUmodule	mCuModule;
+		CUfunction	mCuConcordanceKernel;
+	#endif
+
 
 };
 

@@ -28,7 +28,11 @@
 		#include <cinttypes>
 	#endif
 
-	#include "cuda.h"		
+	#ifdef USE_CUDA
+		#include "cuda.h"		
+	#else
+		typedef char*	CUdeviceptr;
+	#endif
 
 	struct DataPtr {
 		DataPtr();
