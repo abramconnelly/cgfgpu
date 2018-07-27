@@ -29,6 +29,28 @@ void Allocator::Create(DataPtr& p, int max, int stride)
 	cuMemAlloc( &p.gpu, p.size );
 }
 
+void Allocator::Resize ( DataPtr& p, int max, int stride)
+{
+	int newsize = max*stride;
+	int cpysize = (p.size < newsize) ? p.size : newsize;
+	char* newcpu = (char*) malloc( newsize );
+	CUdeviceptr newgpu;
+	cuMemAlloc(&newgpu, newsize);
+
+	if (p.cpu != 0) {
+		memcpy(newcpu, p.cpu, cpysize);		// preserve existing data
+		free(p.cpu); p.cpu = 0;
+	}
+	if (p.gpu != 0) {
+		cuMemcpy(newgpu, p.gpu, cpysize);	// preserve existing data
+		cuMemFree(p.gpu); p.gpu = 0;
+	}
+	p.cpu = newcpu;
+	p.gpu = newgpu;
+	p.size = newsize;
+	p.stride = stride;
+}
+
 void Allocator::Destroy(DataPtr& p)
 {
 	if (p.cpu != 0) { free(p.cpu); p.cpu = 0; }
@@ -59,4 +81,20 @@ void Allocator::Retrieve(DataPtr& p)
 {
 	cuMemcpyDtoH(p.cpu, p.gpu, p.size);
 }
+
+void Allocator::SetDataCPU(DataPtr& p, int i, int offs, void* dat, int sz)
+{
+	char* dest = p.cpu + i*p.stride + offs;
+	memcpy(dest, dat, sz);
+}
+
+void Allocator::SetDataGPU(DataPtr& p, int i, int offs, void* dat, int sz)
+{
+	char* dest = (char*) p.gpu + i*p.stride + offs;
+	cuMemcpyHtoD((CUdeviceptr)dest, dat, sz);
+}
+
+
+
+
 

@@ -409,7 +409,7 @@ int cgf_sanity(cgf_t *cgf);
 // the processing is a little more complicated than just a straight vector
 // compare.
 //
-int overflow_concordance16(int *r_match, int *r_tot,
+int overflow_concordance16(int *r_match, int *r_tot, 
                            std::vector<uint16_t> &a_overflow, int start_a, int end_noninc_a,
                            std::vector<uint16_t> &b_overflow, int start_b, int end_noninc_b,
                            cgf_opt_t *cgf_opt);
@@ -417,7 +417,7 @@ int overflow_concordance16(int *r_match, int *r_tot,
 // r_match will hold the number of high quality matches
 // r_tot will hold the number of high quality tiles present in both cgfs
 //
-int cgf_hiq_concordance(int *r_match, int *r_tot,
+int cgf_hiq_concordance(int *r_match, int *r_tot, 
                         cgf_t *a, cgf_t *b,
                         int start_tile_path, int start_tile_step,
                         int end_tile_path, int end_tile_step,

@@ -627,7 +627,7 @@ int cgf4_main (int argc, char **argv) {
       cgf_b->TileMapCacheInit=1;
 
       if (cgf_opt.repeat==0) {
-        k = cgf_hiq_concordance( &match, &tot,
+        k = cgf_hiq_concordance( &match, &tot, 
             cgf, cgf_b,
             cgf_opt.tilepath, cgf_opt.tilestep,
             cgf_opt.endtilepath, cgf_opt.endtilestep,
@@ -638,7 +638,7 @@ int cgf4_main (int argc, char **argv) {
       else {
 
         for (i=0; i<cgf_opt.repeat; i++) {
-          k = cgf_hiq_concordance( &match, &tot,
+          k = cgf_hiq_concordance( &match, &tot, 
               cgf, cgf_b,
               cgf_opt.tilepath, cgf_opt.tilestep,
               cgf_opt.endtilepath, cgf_opt.endtilestep,
@@ -669,7 +669,7 @@ int cgf4_main (int argc, char **argv) {
           for (end_tilestep = start_tilestep; end_tilestep <= ee; end_tilestep++) {
 
             match=0; tot=0;
-            k = cgf_hiq_concordance( &match, &tot,
+            k = cgf_hiq_concordance( &match, &tot, 
                 cgf, cgf_b,
                 cur_tilepath, start_tilestep,
                 cur_tilepath, end_tilestep,

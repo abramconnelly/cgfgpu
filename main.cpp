@@ -6,7 +6,8 @@
 
 int main(int argc, char **argv) 
 {
-  PERF_INIT(64, true, true, true, 0, "");
+  //PERF_INIT(64, true, true, true, 0, "");
+  PERF_INIT(64, true, true, false, 0, "");
 
   int mode = 0;		// default to cgf4
 

@@ -45,11 +45,15 @@
 	class Allocator {
 	public:
 		void Create		(DataPtr& p, int max, int stride );		
+		void Resize		(DataPtr& p, int max, int stride );
 		void Destroy	(DataPtr& p);
 		int  Alloc		(DataPtr& p);
 		void Commit		(DataPtr& p);
 		void Retrieve	(DataPtr& p);
 		void Zero		(DataPtr& p);
+
+		void SetDataCPU(DataPtr& p, int i, int offs, void* dat, int sz);
+		void SetDataGPU(DataPtr& p, int i, int offs, void* dat, int sz);
 
 		char* getCPU (DataPtr& p, int i)		{ return p.cpu + i*p.stride; }
 	};
